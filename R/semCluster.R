@@ -169,8 +169,8 @@ mergeNodes <- function(graph, membership, HM, ...)
 #'
 #' @description Topological graph clustering methods.
 #' @param graph An igraph object.
-#' @param type Topological clustering methods. If type = "tahc", network
-#' modules are generated using the tree agglomerative hierarchical
+#' @param type Topological clustering methods. If \code{type = "tahc"},
+#' network modules are generated using the tree agglomerative hierarchical
 #' clustering method (Yu et al., 2015).
 #' Other non-tree clustering methods from igraph package include: "wtc"
 #' (default value; walktrap community structure with short random walks),
@@ -342,9 +342,9 @@ clusterGraph <- function(graph, type = "wtc", HM = "none", size = 5,
 #' model will be generated for each module, where source nodes (i.e.,
 #' in-degree = 0) act as common regressors influencing the other nodes
 #' via an unmeasured variable.
+#' By default, HM is set to "LV" (i.e., the latent variable model).
 #' @param size Minimum number of nodes per hidden module. By default, a
 #' minimum number of 5 nodes is required.
-#' By default, HM is set to "LV" (i.e., the latent variable model).
 #' @param type Graph clustering method. If \code{type = "tahc"}, network
 #' modules are generated using the tree agglomerative hierarchical
 #' clustering method (Yu et al., 2015).
@@ -583,14 +583,10 @@ clusterScore <- function(graph, data, group, HM = "LV", type = "wtc",
 #'
 #' \donttest{
 #'
-#' # Extract from graphite the "Steroid biosynthesis" pathway:
+#' # Extract the "Type II diabetes mellitus" pathway:
 #'
-#' library(graphite)
-#' humanKegg <- pathways("hsapiens", "kegg")
-#' p <- humanKegg[["Steroid biosynthesis"]]
-#' g <- pathwayGraph(p)
-#' graph::nodes(g) <- gsub("ENTREZID:","",graph::nodes(g))
-#' G <- properties(graph_from_graphnel(g))[[1]]
+#' g <- kegg.pathways[["Type II diabetes mellitus"]]
+#' G <- properties(g)[[1]]; summary(G)
 #'
 #' # Extend a graph using new inferred DAG edges:
 #'
@@ -598,12 +594,13 @@ clusterScore <- function(graph, data, group, HM = "LV", type = "wtc",
 #' als.npn <- huge.npn(alsData$exprs)
 #'
 #' dag <- SEMdag(graph = G, data = als.npn, beta = 0.1)
+#' gplot(dag$dag)
 #' ext <- extendGraph(list(dag$dag, dag$dag.red), data = als.npn, gnet = kegg)
-#' gplot(ext$Ug)
+#' gplot(ext$Ug) 
 #'
 #' # Extend a graph using the inferred bow-free path diagram:
 #'
-#' bap <- SEMbap(graph = G, data = als.npn, gnet = kegg, d = 1, alpha = 0.05)
+#' bap <- SEMbap(graph = G, data = als.npn, gnet = kegg, d = 1, alpha = 0.1)
 #' ext <- extendGraph(list(bap$bap, bap$guu), data = als.npn, gnet = kegg)
 #' gplot(ext$Ug)
 #'

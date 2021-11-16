@@ -20,8 +20,7 @@ subjects.}
 available in \code{\link[stats]{p.adjust}}. By default, method is set
 to "BH" (i.e., Benjamini-Hochberg correction).}
 
-\item{alpha}{Gene set test significance level. Alpha is set to 0.05
-by default.}
+\item{alpha}{Gene set test significance level (default = 0.05).}
 
 \item{n_rep}{Number of randomization replicates (default = 1000).}
 
@@ -57,31 +56,28 @@ For directed graphs, they include: the sum of group effects adjusted
 by residual variances (D), the sum of the tagret nodes perturbation
 (i.e., group effect) accumulation from source nodes (A), and the sum
 of the source nodes perturbation emission towards target nodes (E).
-For undirected graphs, the sum of group effects, adjusted
-by residual variances (D), will be estimated.
+For undirected graphs, the sum of group effects (D), adjusted
+by residual variances, will be estimated.
 }
 \examples{
 
 \dontrun{
 
-# Install data examples, reference networks, and pathways:
-# devtools::install_github("fernandoPalluzzi/SEMdata")
-library(SEMdata)
+# Nonparanormal(npn) transformation
 library(huge)
-
 als.npn <- huge.npn(alsData$exprs)
 
-#selection of FTD pathways from KEGG
+# Selection of FTD pathways from kegg.pathways.Rdata
 
 paths.name <- c("MAPK signaling pathway",
                 "Protein processing in endoplasmic reticulum",
                 "Endocytosis",
                 "Wnt signaling pathway",
-                "Notch signaling pathway",
                 "Neurotrophin signaling pathway",
-                "Amyotrophic lateral sclerosis (ALS)")
+                "Amyotrophic lateral sclerosis")
 
 j <- which(names(kegg.pathways) \%in\% paths.name)
+
 GSA <- SEMgsa(kegg.pathways[j], als.npn, alsData$group,
               method = "bonferroni", alpha = 0.05,
               n_rep = 1000)
