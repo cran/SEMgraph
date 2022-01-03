@@ -537,7 +537,6 @@ RWR <- function(graph, seed, eweight, algo, q, ...)
 	return(graph = induced_subgraph(graph, top))
 }
 
-#Triangulated Maximally Filtered Graph
 TMFG <- function(cormat, ...)
 {
     n <- ncol(cormat)
