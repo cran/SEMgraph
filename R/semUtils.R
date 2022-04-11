@@ -140,6 +140,7 @@ SEMgsa<- function(g=list(), data, group, method = "BH", alpha = 0.05, n_rep = 10
 	 if (length(fit[[1]]) == 0) {
 	  res.tbl<- rbind(res.tbl, rep(NA,6))
 	  colnames(res.tbl) <- c("No.nodes","No.DEGs","pert","pNa","pNi","PVAL")
+	  DEG <- c(DEG, list(NULL))
 	  next
 	 }
 	 pval<- fit$gest$pvalue
@@ -258,6 +259,7 @@ SEMdci<- function(graph, data, group, C = "none", method = "BH", alpha = 0.05, .
 	  if (ecount(gC) > 0) gL <- c(gL,list(gC))
 	 }
 	cat("Done.\n")
+	if (is.null(gL)) return(gU = make_empty_graph(n = vcount(graph)))
 	gU <- graph.union(gL)
 	}else{
 	 g <- graph
@@ -1165,7 +1167,7 @@ ancestors <- function(g, nodes)
   if (vcount(g) == 0 || length(nodes) == 0) {
     return(numeric(0))
   }
-  as.numeric(sort(graph.bfs(g, nodes, neimode = "in", unreachable = F)$order,
+  as.numeric(sort(graph.bfs(g, nodes, mode = "in", unreachable = F)$order,
                   na.last = NA))
 }
 
@@ -1176,7 +1178,7 @@ descendants <- function(g, nodes)
   if (vcount(g) == 0 || length(nodes) == 0) {
     return(numeric(0))
   }
-  as.numeric(sort(graph.bfs(g, nodes, neimode = "out", unreachable = F)$order,
+  as.numeric(sort(graph.bfs(g, nodes, mode = "out", unreachable = F)$order,
                   na.last = NA))
 }
 

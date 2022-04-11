@@ -1,8 +1,8 @@
 Package: SEMgraph
 Title: Network Analysis and Causal Inference Through Structural
         Equation Modeling
-Version: 1.1.0
-Date: 2022-03-20
+Version: 1.1.1
+Date: 2022-04-09
 Authors@R: c(
     person("Mario", "Grassi", role = "aut", email="mario.grassi@unipv.it"),
     person("Fernando", "Palluzzi", role = "aut", email="fernando.palluzzi@gmail.com"),
@@ -28,8 +28,8 @@ NeedsCompilation: no
 RoxygenNote: 7.1.2
 Maintainer: Barbara Tarantino <barbara.tarantino01@universitadipavia.it>
 Repository: CRAN
-Date/Publication: 2022-03-24 21:50:14 UTC
-Packaged: 2022-03-24 10:45:51 UTC; Mario Grassi
+Date/Publication: 2022-04-11 14:52:32 UTC
+Packaged: 2022-04-09 09:00:44 UTC; Mario Grassi
 Author: Mario Grassi [aut],
   Fernando Palluzzi [aut],
   Barbara Tarantino [aut, cre]

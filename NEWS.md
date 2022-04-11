@@ -27,7 +27,7 @@ P-value of the combined C test
 function, now the induced graph for the "rwr" and "hdi" algorithms is defined
 by the top-n ranking nodes.
 
-* Various fixed bugs...
+* Various fixed bugs
 
 ## Version 1.0.5 Release Notes
 * Fixed bugs for an update from 2.0.0 to 2.1.0 of GGMncv
