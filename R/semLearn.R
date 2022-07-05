@@ -1,6 +1,6 @@
 #  SEMgraph library
-#  Copyright (C) 2019-2021 Mario Grassi; Fernando Palluzzi 
-#  e-mail: <fernando.palluzzi@gmail.com>
+#  Copyright (C) 2019-2021 Mario Grassi; Fernando Palluzzi; Barbara Tarantino 
+#  e-mail: <mario.grassi@unipv.it>
 #  University of Pavia, Department of Brain and Behavioral Sciences
 #  Via Bassi 21, 27100 Pavia, Italy
 
@@ -71,11 +71,6 @@
 #' \item "data", the adjusted (de-correlated) data matrix.
 #' }
 #'
-#' @import igraph
-#' @import lavaan
-#' @import GGMncv
-#' @importFrom stats na.omit var cov qchisq pchisq p.adjust
-#' @importFrom corpcor is.positive.definite cor.shrink
 #' @export
 #'
 #' @author Mario Grassi \email{mario.grassi@unipv.it}
@@ -108,48 +103,48 @@
 SEMbap<- function(graph, data, method="BH", alpha=0.05, limit=30000,
                   verbose=FALSE, ...)
 {
-  # Set graph and data objects:
-  nodes<- colnames(data)[colnames(data) %in% V(graph)$name]
-  graph<- induced_subgraph(graph, vids= which(V(graph)$name %in% nodes))
-  dataY<- as.matrix(data[,nodes])
-  
-  # d-separation local tests (B_U):
-  S_test<- Shipley.test(graph, dataY, limit=limit, verbose=FALSE)
-  dsep<- S_test$dsep
-  d_sep<- subset(dsep, p.adjust(dsep$p.value, method = method) < alpha)
-  dag<- S_test$dag
-  guu<- graph_from_data_frame(d_sep[,1:2], directed=FALSE)
-  if (ecount(guu) > 0) {
-    guu<- difference(guu, as.undirected(dag))
-    cat("Number of significant local tests:", nrow(d_sep), "/", nrow(dsep),"\n\n")
-  }else{
-    return(message("NULL covariance graph: ALL adjusted pvalues > ", alpha, "!"))
-  }
-  
-  # BAP, covariance and latent variables graphs (Ug, guu, gLV)
-  ftm<- as_edgelist(as.undirected(guu))
-  ftmLV<- NULL
-  V(guu)$color<- "white"
-  for (i in 1:nrow(ftm)) ftmLV<- rbind(ftmLV, cbind(rep(paste0("L",i), 2),ftm[i,]))
-  gLV<- graph_from_data_frame(ftmLV, directed=TRUE)
-  V(gLV)$color<- ifelse(substr(V(gLV)$name,1,1)=="L","yellow","white")
-  if(verbose) {
-    plot(guu, main="extended covariance graph (guu)")
-    Sys.sleep(3)
-    plot(gLV, main="extended latent variables graph (gLV)")
-    Sys.sleep(0)
-  }
-  guu<- as.directed(guu, mode="mutual")
-  Ug<- graph.union(g = list(dag, guu))
-  E1<- attr(E(Ug), "vnames")
-  E0<- attr(E(dag), "vnames")
-  E(Ug)$color<- ifelse(E1 %in% E0, "gray", "green")
-  
-  # SEM fitting with adjusted bow-free covariances:
-  dataZ<- diagonalizePsi(g=list(dag,guu), data=dataY)
-  if (verbose) fit<- SEMrun(dag, dataZ, algo="ricf")
-  
-  return( list(dag=dag, guu=as.undirected(guu), gLV=gLV, data=dataZ) )
+	# Set graph and data objects:
+	nodes<- colnames(data)[colnames(data) %in% V(graph)$name]
+	graph<- induced_subgraph(graph, vids= which(V(graph)$name %in% nodes))
+	dataY<- as.matrix(data[,nodes])
+	
+	# d-separation local tests (B_U):
+	S_test<- Shipley.test(graph, dataY, limit=limit, verbose=FALSE)
+	dsep<- S_test$dsep
+	d_sep<- subset(dsep, p.adjust(dsep$p.value, method = method) < alpha)
+	dag<- S_test$dag
+	guu<- graph_from_data_frame(d_sep[,1:2], directed=FALSE)
+	if (ecount(guu) > 0) {
+	 guu<- difference(guu, as.undirected(dag))
+	 cat("Number of significant local tests:", nrow(d_sep), "/", nrow(dsep),"\n\n")
+	}else{
+	 return(message("NULL covariance graph: ALL adjusted pvalues > ", alpha, "!"))
+	}
+	
+	# BAP, covariance and latent variables graphs (Ug, guu, gLV)
+	ftm<- as_edgelist(as.undirected(guu))
+	ftmLV<- NULL
+	V(guu)$color<- "white"
+	for (i in 1:nrow(ftm)) ftmLV<- rbind(ftmLV, cbind(rep(paste0("L",i), 2),ftm[i,]))
+	gLV<- graph_from_data_frame(ftmLV, directed=TRUE)
+	V(gLV)$color<- ifelse(substr(V(gLV)$name,1,1)=="L","yellow","white")
+	if(verbose) {
+	 plot(guu, main="extended covariance graph (guu)")
+	 Sys.sleep(3)
+	 plot(gLV, main="extended latent variables graph (gLV)")
+	 Sys.sleep(0)
+	}
+	guu<- as.directed(guu, mode="mutual")
+	Ug<- graph.union(g = list(dag, guu))
+	E1<- attr(E(Ug), "vnames")
+	E0<- attr(E(dag), "vnames")
+	E(Ug)$color<- ifelse(E1 %in% E0, "gray", "green")
+	
+	# SEM fitting with adjusted bow-free covariances:
+	dataZ<- diagonalizePsi(g=list(dag,guu), data=dataY)
+	if (verbose) fit<- SEMrun(dag, dataZ, algo="ricf")
+	
+	return( list(dag=dag, guu=as.undirected(guu), gLV=gLV, data=dataZ) )
 }
 
 #' @title Missing edge testing implied by a graph with Shipley's basis-set
@@ -175,9 +170,6 @@ SEMbap<- function(graph, data, method="BH", alpha=0.05, limit=30000,
 #' By default, \code{limit = 30000}.
 #' @param ... Currently ignored.
 #'
-#' @import igraph
-#' @importFrom stats cov pt rnorm dchisq
-#' @importFrom parallel detectCores makeCluster clusterExport stopCluster
 #' @export
 #'
 #' @return A list of three objects: (i) the DAG used to perform the Shipley
@@ -205,168 +197,166 @@ SEMbap<- function(graph, data, method="BH", alpha=0.05, limit=30000,
 #'
 #' #}
 #'
-Shipley.test<- function(graph, data, MCX2=FALSE, limit=30000, verbose=TRUE, ...)
+Shipley.test<- function(graph, data, MCX2=FALSE, limit=30000, verbose=TRUE,...)
 {
-  # graph to DAG conversion :
-  nodes<- colnames(data)[colnames(data) %in% V(graph)$name]
-  graph<- induced_subgraph(graph, vids=which(V(graph)$name %in% nodes))
-  df1<- vcount(graph)*(vcount(graph)-1)/2-ecount(as.undirected(graph))
-  dataY<- as.matrix(data[, nodes])
-  
-  if (!is_dag(graph)){
-    cat("WARNING: input graph is not acyclic !\n")
-    cat(" Applying graph -> DAG conversion...\n")
-    dag<- graph2dag(graph, dataY, bap=FALSE) #del cycles & all <->
-    df2<- vcount(dag)*(vcount(dag)-1)/2-ecount(as.undirected(dag))
-    cat(" \nDegrees of freedom:\n Input graph  =", 
-        df1, "\n Output graph =", df2, "\n\n")
-  }else{
-    dag <- graph
-    df2 <- df1
-  }
-  
-  # d-separation local tests (B_U) & Shipley's overall pvalue
-  cat("d-separation test (basis set) of", df2, "edges...\n")
-  dsep<- dsep.test(dag=dag, S=cov(dataY), n=nrow(dataY), limit=limit)
-  #Combining p-values with Fisher's procedure:
-  X2<- -2 * sum(log(dsep$p.value + 1E-16))
-  df<- 2 * nrow(dsep)
-  if (MCX2) {
-    pv<- MCX2(model.df=df, n.obs=nrow(data), model.chi.square=X2)[[1]]
-  }else{
-    pv<- 1 - pchisq(q = X2, df = df)
-  }
-  if (verbose) print(data.frame(C_test=X2, df=df, pvalue=round(pv,6)))
-  
-  return( list(dag=dag, dsep=dsep, ctest=c(X2, df, pv)) )
+	# graph to DAG conversion :
+	nodes<- colnames(data)[colnames(data) %in% V(graph)$name]
+	graph<- induced_subgraph(graph, vids=which(V(graph)$name %in% nodes))
+	df1<- vcount(graph)*(vcount(graph)-1)/2-ecount(as.undirected(graph))
+	dataY<- as.matrix(data[, nodes])
+	
+	if (!is_dag(graph)){
+	 cat("WARNING: input graph is not acyclic !\n")
+	 cat(" Applying graph -> DAG conversion...\n")
+	 dag<- graph2dag(graph, dataY, bap=FALSE) #del cycles & all <->
+	 df2<- vcount(dag)*(vcount(dag)-1)/2-ecount(as.undirected(dag))
+	 cat(" \nDegrees of freedom:\n Input graph  =", 
+            df1, "\n Output graph =", df2, "\n\n")
+	}else{
+	 dag <- graph
+	 df2 <- df1
+	}
+
+	# d-separation local tests (B_U) & Shipley's overall pvalue
+	dsep<- dsep.test(dag=dag, S=cov(dataY), n=nrow(dataY), limit=limit)
+	#Combining p-values with Fisher's procedure:
+	X2<- -2 * sum(log(dsep$p.value + 1E-16))
+	df<- 2 * nrow(dsep)
+	if (MCX2) {
+	 pv<- MCX2(model.df=df, n.obs=nrow(data), model.chi.square=X2)[[1]]
+	}else{
+	 pv<- 1 - pchisq(q = X2, df = df)
+	}
+	if (verbose) print(data.frame(C_test=X2, df=df, pvalue=round(pv,6)))
+			
+	return( list(dag=dag, dsep=dsep, ctest=c(X2, df, pv)) )
 }
 
-dsep.test <- function(dag, S, n, limit = 30000, ...)
+dsep.test <- function(dag, S, n, limit, ...)
 {
-  # d-sep (basis set) testing of a DAG
-  idx <- as.numeric(topo_sort(dag, mode = "out"))
-  A <- as_adj(dag, sparse = FALSE)[idx, idx]
-  M <- gdata::unmatrix(A, byrow = FALSE)
-  M <- M[as.vector(upper.tri(A, diag = FALSE))]
-  M <- names(M)[which(M == 0)]
-  
-  local <- function(x) {
-    s <- strsplit(x, ":")
-    ed <- c(s[[1]][1], s[[1]][2])
-    pa.r <- igraph::V(dag)$name[SEMgraph::parents(dag, ed[1])]
-    pa.s <- igraph::V(dag)$name[SEMgraph::parents(dag, ed[2])]
-    dsep <- union(pa.r, pa.s)
-    dsep <- setdiff(dsep, ed)
-    B <- c(ed, dsep)
-    if(length(B) > (n - 3)) return(rep(NA, 4))
-    p.value <- pcor.test(S, B, n, H0 = 0.05)
-    set <- paste(B[-c(1:2)], collapse = ",")
-    return(data.frame(X = B[1], Y = B[2], SET = set, p.value))
-  }
-  
-  #message("d-separation test (basis set) of ", length(M), " edges ...")
-  op <- pbapply::pboptions(type = "timer", style = 2)
-  df <- vcount(dag)*(vcount(dag) - 1)/2 - ecount(dag)
-  if (df > limit) {
-    n_cores <- parallel::detectCores()/2
-    cl <- parallel::makeCluster(n_cores)
-    parallel::clusterExport(cl, c("local", "dag", "S", "n"),
-                            envir = environment())
-    SET <- pbapply::pblapply(M, local, cl = cl)
-    parallel::stopCluster(cl)
-  } else {
-    SET <- pbapply::pblapply(M, local, cl = NULL)
-  }
-  SET <- do.call(rbind, lapply(SET, as.data.frame))
-  flush.console
-  return(SET = na.omit(SET))
+ 	# d-sep (basis set) testing of a DAG
+	A <- ifelse(as_adj(as.undirected(dag), sparse=FALSE) == 1, 0, 1)
+	ug <- graph_from_adjacency_matrix(A, mode="undirected", diag=FALSE)
+	M <- attr(E(ug), "vnames")
+	
+	local<- function(x) {
+	 s <- strsplit(x,"\\|")
+	 ed <- c(s[[1]][1], s[[1]][2])
+	 pa.r <- V(dag)$name[SEMgraph::parents(dag, ed[1])]
+	 pa.s <- V(dag)$name[SEMgraph::parents(dag, ed[2])]
+	 dsep <- union(pa.r, pa.s)
+     dsep <- setdiff(dsep, ed)
+	 B <- c(ed, dsep)
+	 if(length(B) > (n-3)) return(rep(NA,4))
+	 p.value <- pcor.test(S, B, n, H0=0.05)
+	 set <- paste(B[-c(1:2)], collapse=",")
+	 return(data.frame(X=B[1], Y=B[2], SET=set, p.value))
+	}
+
+	message("d-separation test (basis set) of ", length(M), " edges...")
+	op<- pbapply::pboptions(type = "timer", style = 2)
+	df<- vcount(dag)*(vcount(dag)-1)/2 - ecount(dag)
+	if ( df > limit ){
+	 n_cores <- parallel::detectCores(logical = FALSE)
+	 cl <- parallel::makeCluster(n_cores)
+	 parallel::clusterExport(cl, c("local", "dag", "S", "n"),
+							 envir = environment())
+	 SET<- pbapply::pblapply(M, local, cl=cl)
+	 parallel::stopCluster(cl)
+	}else{
+	 SET<- pbapply::pblapply(M, local, cl=NULL)
+	}
+	SET<- do.call(rbind, lapply(SET, as.data.frame))
+
+	return(SET = na.omit(SET))
 }
 
-pcor.test <- function(S, B, n, H0 = 0, ...)
+pcor.test<- function(S, B, n, H0, ...)
 {
-  k <- solve(S[B, B])
-  r <- -k[1, 2]/sqrt(k[1, 1]*k[2, 2])
-  q <- length(B) - 2
-  if (H0 == 0) {
-    df <- n - 2 - q
-    tval <- r*sqrt(df)/sqrt(1 - r^2)
-    pval <- 2*pt(-abs(tval), df)
-  } else {
-    z <- atanh(r)
-    se <- 1/sqrt(n - 3 - q)
-    pval <- pchisq((z/se)^2, df = 1, ncp = (atanh(.05)/se)^2,
-                   lower.tail = FALSE)
-  }
-  return(pval)
+	#Set objects
+	k <- solve(S[B,B])
+    r <- -k[1,2]/sqrt(k[1,1]*k[2,2])
+	q <- length(B)-2
+	if( H0 == 0 ) {
+	#Test null H0: r=abs(r(X,Y|Z))=0
+	 df <- n - 2 - q
+	 tval <- r * sqrt(df)/sqrt(1 - r * r)
+	 pval <- 2 * pt(-abs(tval), df)
+	}else{
+	#Test of not-close fit, H0: r=abs(r(X,Y|Z)) vs. r<.05
+	 z <- atanh(r)
+	 se <-  1/sqrt(n - 3 - q)
+	 pval <- pchisq((z/se)^2, df=1, ncp=(atanh(H0)/se)^2, lower.tail=FALSE)
+	}
+	return(pval)
 }
 
 MCX2 <- function (model.df, n.obs, model.chi.square, n.sim = 10000, ...)
 {
-  #Monte Carlo Chi-square simulator (Author: Bill Shipley) from:
-  #devtools::install_github("BillShipley/CauseAndCorrelation")
-  # All rights reserved.  See the file COPYING for license terms.
-  x <- (-1 + sqrt(1 + 8 * model.df))/2
-  if ((x - as.integer(x)) == 0)
-    v <- x
-  if ((x - as.integer(x)) > 0 & (x - as.integer(x)) < 1) 
-    v <- as.integer(x) + 1
-  if ((x - as.integer(x)) > 1) 
-    return(message("ERROR: check model df !"))
-  c.value <- v * (v + 1)/2 - model.df
-  MCX2 <- rep(NA, n.sim)
-  for (i in 1:n.sim) {
-    dat <- matrix(rnorm(n.obs * v), ncol = v)
-    obs.VCV <- var(dat)
-    model.VCV <- diag(v)
-    diag(model.VCV)[1:c.value] <- diag(obs.VCV)[1:c.value]
-    MCX2[i] <- (n.obs - 1) * (log(det(model.VCV) + 1*10^-100) + sum(diag(obs.VCV) * 
-                                (1/diag(model.VCV))) - log(det(obs.VCV)+ 1*10^-100) - v)
-  }
-  MCprob <- sum(MCX2 >= model.chi.square)/n.sim
-  x <- seq(0, max(MCX2))
-  theoretical.prob <- dchisq(x, model.df)
-  MLprob<- pchisq(model.chi.square, model.df, lower.tail=FALSE)
-  
-  return(list(MCprob = MCprob, MLprob = MLprob))
+	#Monte Carlo Chi-square simulator (Author: Bill Shipley) from:
+	#devtools::install_github("BillShipley/CauseAndCorrelation")
+	# All rights reserved.  See the file COPYING for license terms.
+	x <- (-1 + sqrt(1 + 8 * model.df))/2
+	if ((x - as.integer(x)) == 0)
+	v <- x
+	if ((x - as.integer(x)) > 0 & (x - as.integer(x)) < 1) 
+	v <- as.integer(x) + 1
+	if ((x - as.integer(x)) > 1)return(message("ERROR: check model df !"))
+	c.value <- v * (v + 1)/2 - model.df
+	MCX2 <- rep(NA, n.sim)
+	for (i in 1:n.sim) {
+	 dat <- matrix(rnorm(n.obs * v), ncol = v)
+	 obs.VCV <- var(dat)
+	 model.VCV <- diag(v)
+	 diag(model.VCV)[1:c.value] <- diag(obs.VCV)[1:c.value]
+	 MCX2[i] <- (n.obs - 1) * (log(det(model.VCV)) + sum(diag(obs.VCV) * 
+							(1/diag(model.VCV))) - log(det(obs.VCV)) - v)
+	}
+	MCprob <- sum(MCX2 >= model.chi.square)/n.sim
+	x <- seq(0, max(MCX2))
+	theoretical.prob <- dchisq(x, model.df)
+	MLprob<- pchisq(model.chi.square, model.df, lower.tail=FALSE)
+	
+	return(list(MCprob = MCprob, MLprob = MLprob))
 }
 
 diagonalizePsi <- function(g = list(graph, guu), data, ...)
 {
-  # Set graph and data objects
-  graph <- g[[1]]
-  V <- colnames(data)[colnames(data) %in% V(graph)$name]
-  Y <- scale(data[, V])
-  graph <- induced_subgraph(graph, vids = which(V(graph)$name %in% V))
-  A0 <- as_adj(as.undirected(graph), type = "both", sparse = FALSE)[V, V]
-  
-  # Precision fitting of guu -> wi
-  guu <- g[[2]]
-  adj <- as_adj(guu, sparse = FALSE)
-  idx <- which(rownames(A0) %in% rownames(adj) == FALSE)
-  if (length(idx) > 0) {
-    R <- matrix(0, length(idx), ncol(adj))
-    C <- matrix(0, nrow(adj), length(idx))
-    I <- diag(length(idx))
-    adj <- rbind(cbind(I, R), cbind(C, adj))
-    rownames(adj)[1:length(idx)] <- rownames(A0)[idx]
-    colnames(adj)[1:length(idx)] <- rownames(A0)[idx]
-  }
-  Sigma <- cor(Y[, colnames(adj)])
-  wi <- GGMncv::constrained(Sigma, adj)$Theta
-  colnames(wi) <- rownames(wi) <- colnames(adj)
-  if (!corpcor::is.positive.definite(wi)) {
-    wi <- corpcor::cor.shrink(wi, verbose = FALSE)
-    #wi <- corpcor::cov.shrink(wi, verbose = TRUE)
-    #wi <- corpcor::make.positive.definite(wi)
-  }
-  E <- eigen(wi) # Eigenvalues and eigenvectors of w
-  R <- E$vectors%*%diag(sqrt(E$values))%*%t(E$vectors)
-  #sum(wi - R %*% R)
-  Y <- Y[,colnames(wi)]
-  YR <- as.matrix(Y)%*%R
-  colnames(YR) <- colnames(Y)
-  
-  return(data = YR[, V])
+	# Set graph and data objects
+	graph <- g[[1]]
+	V <- colnames(data)[colnames(data) %in% V(graph)$name]
+	Y <- scale(data[, V])
+	graph <- induced_subgraph(graph, vids = which(V(graph)$name %in% V))
+	A0 <- as_adj(as.undirected(graph), type = "both", sparse = FALSE)[V, V]
+	
+	# Precision fitting of guu -> wi
+	guu <- g[[2]]
+	adj <- as_adj(guu, sparse = FALSE)
+	idx <- which(rownames(A0) %in% rownames(adj) == FALSE)
+	if (length(idx) > 0) {
+	 R <- matrix(0, length(idx), ncol(adj))
+	 C <- matrix(0, nrow(adj), length(idx))
+	 I <- diag(length(idx))
+	 adj <- rbind(cbind(I, R), cbind(C, adj))
+	 rownames(adj)[1:length(idx)] <- rownames(A0)[idx]
+	 colnames(adj)[1:length(idx)] <- rownames(A0)[idx]
+	}
+	Sigma <- cor(Y[, colnames(adj)])
+	wi <- GGMncv::constrained(Sigma, adj)$Theta
+	colnames(wi) <- rownames(wi) <- colnames(adj)
+	if (!corpcor::is.positive.definite(wi)) {
+	 wi <- corpcor::cor.shrink(wi, verbose = FALSE)
+	 #wi <- corpcor::cov.shrink(wi, verbose = TRUE)
+	 #wi <- corpcor::make.positive.definite(wi)
+	}
+	E <- eigen(wi) # Eigenvalues and eigenvectors of w
+	R <- E$vectors%*%diag(sqrt(E$values))%*%t(E$vectors)
+	#sum(wi - R %*% R)
+	Y <- Y[,colnames(wi)]
+	YR <- as.matrix(Y)%*%R
+	colnames(YR) <- colnames(Y)
+	
+	return(data = YR[, V])
 }
 
 #' @title Estimate the optimal DAG from an input graph
@@ -423,12 +413,6 @@ diagonalizePsi <- function(g = list(graph, guu), data, ...)
 #' \item "dag.old", connections preserved from the input graph.
 #' }
 #'
-#' @import igraph
-#' @import lavaan
-#' @importFrom stats coefficients
-#' @importFrom utils flush.console
-#' @importFrom glmnet glmnet
-#' @importFrom RcppEigen fastLm
 #' @export
 #'
 #' @author Mario Grassi \email{mario.grassi@unipv.it}
@@ -479,7 +463,7 @@ SEMdag<- function(graph, data, LO="TO", beta=0, lambdas=NA, penalty=TRUE, verbos
 	# Set DAG objects:
 	nodes<- colnames(data)[colnames(data) %in% V(graph)$name]
 	ig<- induced_subgraph(graph, vids= which(V(graph)$name %in% nodes))
-	if (!is_dag(ig)){
+	if (!is_dag(ig) & LO == "TO"){
 	 cat("WARNING: input graph is not acyclic !\n")
 	 cat(" Applying graph -> DAG conversion...\n")
 	 dag<- graph2dag(ig, data) #del cycles & all <->
@@ -493,19 +477,22 @@ SEMdag<- function(graph, data, LO="TO", beta=0, lambdas=NA, penalty=TRUE, verbos
 	colnames(x$adj)<- rownames(x$adj)<- colnames(X)
 	
 	# Mapping DAG edges on input graph:
+	if (sum(x$adj) == 0) return(message("DAG with 0 edges, decrease beta threshold !"))
 	ig1<- graph_from_adjacency_matrix(x$adj, mode="directed") #gplot(ig1)
 	ig2<- quiet(properties(ig1)[[1]]) #gplot(ig2)
 	E1<- attr(E(ig2), "vnames")
 	E0<- attr(E(ig), "vnames")
 	E(ig2)$color<- ifelse(E1 %in% E0, "gray", "green")
-	if(verbose & ecount(ig2) != 0) gplot(ig2)
 	ig3<- ig2-E(ig2)[which(E(ig2)$color == "gray")]
 	ig3<- ig3-vertices(V(ig3)$name[igraph::degree(ig3) == 0])
 	ig4<- ig2-E(ig2)[which(E(ig2)$color == "green")]
 	ig4<- ig4-vertices(V(ig4)$name[igraph::degree(ig4) == 0])
 	
-	if (verbose) fit<- SEMrun(ig2, X, algo="ricf")
-
+	if (verbose) {
+	 gplot(ig2)
+	 fit<- SEMrun(ig2, X, algo="ricf")
+	}
+	
 	return( list(dag=ig2, dag.new=ig3, dag.old=ig4) )
 }
 
@@ -519,9 +506,10 @@ DAG_HD_TD<- function(graph, X, LO, beta, lambdas, penalty, verbose, ...)
 	 rr <- rev(match(TO, colnames(X)))
 	 l <- sqrt(log(p)/n)
 	}else if (LO == "TD"){
-	 J <-  max(igraph::degree(graph, mode= "in"))
+	 #J <-  max(igraph::degree(graph, mode= "in"))
+	 J <- 5
 	 rr <- rev(getOrdering(X, J))
-	 l <- 2/sqrt(n) * qnorm(1 - 0.20/(2*p*(p-1)))
+	 l <- qnorm(1 - 0.05/(2*p*(p-1)))/sqrt(n)
 	}
 	cat("Node Linear Ordering with", LO, "setting\n\n")
 	if (verbose) {print(colnames(X)[rev(rr)]);cat("\n")}
@@ -568,26 +556,27 @@ DAG_HD_TD<- function(graph, X, LO, beta, lambdas, penalty, verbose, ...)
 
 getOrdering<- function (Y, J, ...)
 {
-  # Copyright (c) 2020  Wenyu Chen [email ?]
-  # https://github.com/WY-Chen/EqVarDAG
-  # All rights reserved.  See the file COPYING for license terms.
-  p <- dim(Y)[2]
-  variances <- apply(Y, MARGIN = 2, sd)
-  Theta <- rep(0, p)
-  Theta[1] <- which.min(variances)
-  out <- sapply(setdiff(1:p, Theta[1]), function(z) {
-    sum(resid(RcppEigen::fastLm(Y[, z] ~ Y[, Theta[1], drop = F]))^2)
-  })
-  Theta[2] <- setdiff(1:p, Theta[1])[which.min(out)]
-  for (i in 3:p) {
-    out <- lapply(setdiff(1:p, Theta), function(jj) subsets(jj, 
-                                                      Y, Theta[seq(i - 1)], J))
-    nextRoot <- which.min(sapply(out, function(x) {
-      min(x$rss)
-    }))
-    Theta[i] <- setdiff(1:p, Theta)[nextRoot]
-  }
-  return(Theta)
+	# Copyright (c) 2020  Wenyu Chen [email ?]
+	# https://github.com/WY-Chen/EqVarDAG
+	# All rights reserved.  See the file COPYING for license terms.
+	p <- dim(Y)[2]
+	variances <- apply(Y, MARGIN = 2, sd)
+	Theta <- rep(0, p)
+	Theta[1] <- which.min(variances)
+	out <- sapply(setdiff(1:p, Theta[1]), function(z) {
+	  #sum(resid(RcppEigen::fastLm(Y[, z] ~ Y[, Theta[1], drop = F]))^2)
+	  sum(resid(lm(Y[, z] ~ Y[, Theta[1], drop = F]))^2)
+	 })
+	Theta[2] <- setdiff(1:p, Theta[1])[which.min(out)]
+	for (i in 3:p) {
+	 out <- suppressWarnings(lapply(setdiff(1:p, Theta),
+			function(jj) subsets(jj, Y, Theta[seq(i - 1)], J)))
+	 nextRoot <- which.min(sapply(out, function(x) {
+		min(x$rss)
+	 }))
+	 Theta[i] <- setdiff(1:p, Theta)[nextRoot]
+	}
+	return(Theta)
 }
 
 subsets<- function (z, Y, Theta, J, mtd = "seqrep") 
@@ -653,8 +642,6 @@ subsets<- function (z, Y, Theta, J, mtd = "seqrep")
 #' graph, network resize may create cross-connections between old and new paths
 #' and their possible closure into circuits.
 #'
-#' @import igraph
-#' @import lavaan
 #' @export
 #'
 #' @author Mario Grassi \email{mario.grassi@unipv.it}
@@ -692,123 +679,447 @@ subsets<- function (z, Y, Theta, J, mtd = "seqrep")
 #' ext <- resizeGraph(g=list(bap$dag, bap$guu), gnet = kegg, d = 1, v = FALSE)
 #' gplot(ext)
 #'
-#' # Create a directed graph from correlation matrix, using
-#' # i) empty graph as causal graph, and ii) KEGG as reference:
-#'
-#' v <- which(colnames(als.npn) %in% V(G)$name)
-#' selectedData <- als.npn[, v]
-#' G0 <- make_empty_graph(n = ncol(selectedData))
-#' V(G0)$name <- colnames(selectedData)
-#'
-#' G1 <- corr2graph(R = cor(selectedData), n = nrow(selectedData),
-#'                  type = "tmfg")
-#' ext <- resizeGraph(g=list(G0, G1), gnet = kegg, d = 2, v = FALSE)
-#' 
-#' #Graphs
-#' old.par <- par(no.readonly = TRUE)
-#' par(mfrow=c(1,2), mar=rep(1,4))
-#' plot(G1, layout = layout.circle)
-#' plot(ext, layout = layout.circle)
-#' par(old.par)
-#'
 #' }
 #'
 resizeGraph<- function(g=list(), gnet, d = 2, v = TRUE, verbose = FALSE, ...)
 {
-  # Set graph objects (gnet, ig, guu):
-  if (!is_directed(gnet)) {
-    return(message(" ERROR: Reference graph is NOT a directed graph !"))
-  }
-  if (!is_directed(g[[1]])) {
-    return(message(" ERROR: First input graph is NOT a directed graph !"))
-  }
-  ig<- g[[1]]
-  if(!is.null(V(ig)$color)) ig<- delete_vertex_attr(ig, "color")
-  if(!is.null(E(ig)$color)) ig<- delete_edge_attr(ig, "color")
-  guu<- getNetEdges(g[[2]], gnet, d, yes = is.directed(g[[2]]))
-  if (ecount(guu) == 0) {
-    return(message(" no edges u->u (or u--u) found !"))
-  }
-  
-  if (v == TRUE) {
-    # all_shortest_paths calculates ALL shortest paths from=x to=y
-    # shortest_paths calculates a SINGLE shortest path from=x to=y
-    ftm<- as_edgelist(guu)
-    vpath<- ftmuv<-  NULL
-    for (i in 1:nrow(ftm)) {
-      mode<- ifelse(is.directed(guu) & is.directed(gnet), "out", "all")
-      if(distances(gnet,ftm[i,1],ftm[i,2],mode=mode,weights=NA) == Inf) next
-      if(is.null(E(gnet)$pv)){
-        suppressWarnings(path<- shortest_paths(gnet, ftm[i,1], ftm[i,2],
-                                               mode = mode, weights = NA)$vpath)
-      }else{
-        suppressWarnings(path<- all_shortest_paths(gnet, ftm[i,1], ftm[i,2],
-                                                   mode = mode, weights = NA)$res)
-      }
-      if(length(path) >1){
-        fX2<- NULL
-        for( k in 1:length(path)) {
-          pathk<- induced_subgraph(gnet, V(gnet)$name[path[[k]]])
-          fX2[k]<- -2*sum(log(E(pathk)$pv))
-        }
-        path<- path[[which(fX2 == max(fX2))[1]]]
-      }else{
-        path<- path[[1]]
-      }
-      V<- V(gnet)$name[path]
-      vpath<- c(vpath, V[-c(1,length(V))])
-      for(h in 1:(length(V)-1)) ftmuv<- rbind(ftmuv, c(V[h], V[h+1]))
-    }
-    
-    ftmuv<- na.omit(ftmuv[duplicated(ftmuv) != TRUE,])
-    guv<- graph_from_edgelist(ftmuv, directed=is.directed(guu))
-    #guv<- guv - E(guv)[which_mutual(guv)]
-    vv<- V(guv)$name[-which(V(guv)$name %in% V(ig)$name)]
-    V(guv)$color[V(guv)$name %in% vv]<- "green"
-  }else{
-    guv<- guu
-  }
-  
-  if (!is.directed(guv)) guv <- orientEdges(guv, gnet)
-  Ug<- graph.union(g=list(ig,guv))
-  Ug<- quiet(properties(Ug)[[1]])
-  E1 <- attr(E(Ug), "vnames")
-  E0 <- attr(E(ig), "vnames")
-  E(Ug)$color <- ifelse(E1 %in% E0, "gray", "green")
-  if (verbose) gplot(Ug, main="Resized Graph (Ug)")
-  
-  return(graph = Ug)
+	# Set graph objects (gnet, ig, guu):
+	if (!is_directed(gnet)) {
+	 return(message(" ERROR: Reference graph is NOT a directed graph !"))
+	}
+	if (!is_directed(g[[1]])) {
+	 return(message(" ERROR: First input graph is NOT a directed graph !"))
+	}
+	ig<- g[[1]]
+	if(!is.null(V(ig)$color)) ig<- delete_vertex_attr(ig, "color")
+	if(!is.null(E(ig)$color)) ig<- delete_edge_attr(ig, "color")
+	guu<- getNetEdges(g[[2]], gnet, d, yes = is.directed(g[[2]]))
+	if (ecount(guu) == 0) {
+	 message(" no edges u->u (or u--u) found !")
+	 return(graph = ig)
+	}
+	
+	if (v == TRUE) {
+	 # all_shortest_paths calculates ALL shortest paths from=x to=y
+	 # shortest_paths calculates a SINGLE shortest path from=x to=y
+	 ftm<- as_edgelist(guu)
+	 vpath<- ftmuv<-  NULL
+	 for (i in 1:nrow(ftm)) {
+		mode<- ifelse(is.directed(guu) & is.directed(gnet), "out", "all")
+		if(distances(gnet,ftm[i,1],ftm[i,2],mode=mode,weights=NA) == Inf) next
+		if(is.null(E(gnet)$pv)){
+		suppressWarnings(path<- shortest_paths(gnet, ftm[i,1], ftm[i,2],
+												mode = mode, weights = NA)$vpath)
+		}else{
+		suppressWarnings(path<- all_shortest_paths(gnet, ftm[i,1], ftm[i,2],
+													mode = mode, weights = NA)$res)
+		}
+		if(length(path) >1){
+		 fX2<- NULL
+		 for( k in 1:length(path)) {
+			pathk<- induced_subgraph(gnet, V(gnet)$name[path[[k]]])
+			fX2[k]<- -2*sum(log(E(pathk)$pv))
+		 }
+		 path<- path[[which(fX2 == max(fX2))[1]]]
+		}else{
+		 path<- path[[1]]
+		}
+		V<- V(gnet)$name[path]
+		vpath<- c(vpath, V[-c(1,length(V))])
+		for(h in 1:(length(V)-1)) ftmuv<- rbind(ftmuv, c(V[h], V[h+1]))
+	 }
+	
+	 ftmuv<- na.omit(ftmuv[duplicated(ftmuv) != TRUE,])
+	 guv<- graph_from_edgelist(ftmuv, directed=is.directed(guu))
+	 #guv<- guv - E(guv)[which_mutual(guv)]
+	 vv<- V(guv)$name[-which(V(guv)$name %in% V(ig)$name)]
+	 V(guv)$color[V(guv)$name %in% vv]<- "green"
+	}else{
+	 guv<- guu
+	}
+	
+	if (!is.directed(guv)) guv <- orientEdges(guv, gnet)
+	Ug<- graph.union(g=list(ig,guv))
+	Ug<- quiet(properties(Ug)[[1]])
+	E1 <- attr(E(Ug), "vnames")
+	E0 <- attr(E(ig), "vnames")
+	E(Ug)$color <- ifelse(E1 %in% E0, "gray", "green")
+	if (verbose) gplot(Ug, main="Resized Graph (Ug)")
+	
+	return(graph = Ug)
 }
 
 getNetEdges<- function(graph, gnet, d, yes, ...) 
 {
-  # External validation of discovery edges from a reference interactome
-  SET1<- as_edgelist(graph)
-  if( nrow(SET1) == 0 ){
-    return(message("n.interactions of input graph = 0 !"))
-  }	
-  ftm1<- NULL
-  for(j in 1:nrow(SET1)) { #j=14
-    cat("\r","edge set=", j, "of", nrow(SET1))
-    #Sys.sleep(0.01)
-    flush.console()
-    a<- SET1[j,1]
-    b<- SET1[j,2]
-    ftm1<- rbind(ftm1, c(a,b))
-    v<- which(V(gnet)$name %in% c(a,b))
-    if (length(v) == 2) {
-      if(yes == FALSE) sp<- distances(gnet, a, b, mode="all", weights=NA)
-      if(yes == TRUE) sp<- distances(gnet, a, b, mode="out", weights=NA)
-      if(sp <= d) ftm1[j,]<- c(a,b) else ftm1[j,]<- c(NA,NA)
-    }else{ ftm1[j,]<- c(NA,NA) }
-  } 
-  #ftm1<- na.omit(ftm1)
-  ftm1<- rbind(na.omit(ftm1), SET1[SET1[,1] == "group",])
-  cat("\n\n", "n. edges to be evaluated:", nrow(SET1),
-      "\n", "n. edges selected from interactome:", nrow(ftm1), "\n\n")
-  guu<- graph_from_edgelist(ftm1, directed=yes) #gplot(guu)
-  
-  return(guu)
+	# External validation of discovery edges from a reference interactome
+	SET1<- as_edgelist(graph)
+	if( nrow(SET1) == 0 ){
+	 return(message("n.interactions of input graph = 0 !"))
+	}	
+	ftm1<- NULL
+	for(j in 1:nrow(SET1)) { #j=14
+	 cat("\r","edge set=", j, "of", nrow(SET1))
+	 #Sys.sleep(0.01)
+	 flush.console()
+	 a<- SET1[j,1]
+	 b<- SET1[j,2]
+	 ftm1<- rbind(ftm1, c(a,b))
+	 v<- which(V(gnet)$name %in% c(a,b))
+	 if (length(v) == 2) {
+		if(yes == FALSE) sp<- distances(gnet, a, b, mode="all", weights=NA)
+		if(yes == TRUE) sp<- distances(gnet, a, b, mode="out", weights=NA)
+		if(sp <= d) ftm1[j,]<- c(a,b) else ftm1[j,]<- c(NA,NA)
+	 }else{ ftm1[j,]<- c(NA,NA) }
+	} 
+	#ftm1<- na.omit(ftm1)
+	ftm1<- rbind(na.omit(ftm1), SET1[SET1[,1] == "group",])
+	cat("\n\n", "n. edges to be evaluated:", nrow(SET1),
+		"\n", "n. edges selected from interactome:", nrow(ftm1), "\n\n")
+	guu<- graph_from_edgelist(ftm1, directed=yes) #gplot(guu)
+	
+	return(guu)
+}
+
+#' @title Tree-based structure learning methods
+#'
+#' @description Four tree-based structure learning methods are implemented
+#' with graph and data-driven algorithms. The graph methods refer to the 
+#' fast Steiner Tree (ST) Kou's algorithm, and the identification of 
+#' the Minimum Spanning Tree (MST) with Prim's algorithm. 
+#' The data-driven methods propose fast and scalable procedures based on 
+#' Chow-Liu–Edmonds’ algorithm (CLE) to recover the skeleton of the
+#' polytree. The first method, called Causal Additive Trees (CAT) uses
+#' pairwise addittive weights as input for CLE algorithm. The second one
+#' applies CLE algorithm for skeleton recovery and extends the skeleton to
+#' a Completed Partially Directed Acyclic Graph (CPDAG).
+#'
+#' @param graph An igraph object.
+#' @param data A matrix or data.frame. Rows correspond to subjects, and
+#' columns to graph nodes (variables).
+#' @param seed A vector of seed nodes.  
+#' @param type Tree-based structure learning method. Four algorithms 
+#' are available:
+#' \itemize{
+#' \item "ST" (default). Steiner Tree (ST) identification via fast Kou's algorithm 
+#' (1981) connecting a set of seed nodes (called Terminal vertices) with connector
+#' nodes (called Steiner vertices) from input graph as defined in \code{graph}
+#' with minimal total distance on its edges. 
+#' \item "MST". Minimum Spanning Tree (MST) identification via Prim's algorithm
+#' (Prim, 1957). The latter finds the subset of edges that includes every vertex
+#' of the graph (as defined in \code{graph}) such that the sum of the weights 
+#' of the edges can be minimized. The argument \code{seed} is
+#' set to NULL (i.e., no seed nodes are needed).
+#' \item "CAT". Causal additive trees (CAT) algorithm as in Jakobsen et al. 
+#' (2022). While the previous algorithms rely on the input graph, the "CAT" 
+#' algorithm is data-driven. The argument \code{graph} is set to NULL 
+#' (i.e., no input graph is needed). In the first step, a (univariate) generalized
+#' additive model (GAM) is employed to estimate the conditional
+#' expectations E[X_{i}|X_{j} = x] for all i != j, then use these to construct edge
+#' weights as inputs to the Chu–Liu–Edmonds’ algorithm (Chow and Liu, 1968).
+#' Argument \code{seed} must be specified to analyse a subset of nodes (variables)
+#' of interest.
+#' \item "CPDAG". CLE algorithm for Skeleton Recovery and CPDAG
+#' estimation as in Lou et al. (2021). Together with "CAT" algorithm, "CPDAG" is 
+#' data-driven and the argument \code{graph} is set to NULL.
+#' The key idea is to first recover the skeleton of the polytree by applying 
+#' the CLE algorithm  to the pairwise sample correlations of the data matrix.
+#' After the skeleton is recovered, the set of all v-structures can be correctly
+#' identified via a simple thresholding approach to pairwise sample correlations.
+#' Finally, the CPDAG of the polytree can be found applying iteratively only
+#' Rule 1 of Meek (1995). Argument \code{seed} must be specified to analyse a
+#' subset of nodes (variables) of interest.}
+#' @param eweight Edge weight type for igraph object derived from
+#' \code{\link[SEMgraph]{weightGraph}} or from user-defined distances. 
+#' This option determines the weight-to-distance transform.
+#' If set to "NULL" (default), edge weights will be internally computed
+#' equal to correlation data-driven methods (i.e., Mutual Information). 
+#' If \code{eweight = "kegg"}, repressing interactions (-1) will be set 
+#' to 1 (maximum distance), neutral interactions (0) will be set to 0.5, 
+#' and activating interactions (+1) will be set to 0 (minimum distance).
+#' If \code{eweight = "zsign"}, all significant interactions will be set 
+#' to 0 (minimum distance), while non-significant ones will be set to 1.
+#' If \code{eweight = "pvalue"}, weights (p-values) will be transformed 
+#' to the inverse of negative base-10 logarithm. 
+#' If \code{eweight = "custom"}, the algorithm will use the distance 
+#' measure specified by the user as "weight" edge attribute.
+#' @param alpha Threshold for rejecting a pair of node being independent in 
+#' "CPDAG" algorithm. The latter implements a natural v-structure identification 
+#' procedure by thresholding the pairwise sample correlations over all adjacent 
+#' pairs of edges with some appropriate threshold. By default, 
+#' \code{alpha = 0.05}.
+#' @param verbose If TRUE, it shows the output tree (not recommended for large graphs).
+#' @param ... Currently ignored.
+#'
+#' @details If the input graph is a directed graph, ST and MST undirected trees are
+#' converted in directed trees using the \code{\link[SEMgraph]{orientEdges}} function.
+#' If the input graph is an undirected graph, ST and MST undirected trees are 
+#' converted in a directed polytree using CAT algorithm with (univariate) linear
+#' regression for conditional expectation mapped on the output tree.
+#'
+#' @export
+#'
+#' @return An \code{igraph} object. If \code{type = "ST"}, seed nodes are 
+#' colored in green and connectors in white. If \code{type = "ST"} and
+#' \code{type = "MST"}, edges are colored in green if not present in the input
+#' graph. If \code{type = "CPDAG"}, bidirected edges are colored in golden
+#' (if the algorithm is not able to establish the direction of the relationship
+#' between x and y).
+#'
+#' @author Mario Grassi \email{mario.grassi@unipv.it}
+#' 
+#' @references
+#'
+#' Kou, L., Markowsky, G., Berman, L. (1981). A fast algorithm for Steiner trees. 
+#' Acta Informatica 15, 141–145. <https://doi.org/10.1007/BF00288961>
+#'
+#' Prim, R.C. (1957). Shortest connection networks and some generalizations Bell
+#' System Technical Journal, 37 1389–1401. 
+#'
+#' Chow, C.K. and Liu, C. (1968). Approximating discrete probability distributions with 
+#' dependence trees. IEEE Transactions on Information Theory, 14(3):462–467.
+#' 
+#' Meek, C. (1995). Causal inference and causal explanation with background knowledge.
+#' In Proceedings of the Eleventh conference on Uncertainty in artificial intelligence,
+#' 403–410.
+#'
+#' Jakobsen, M, Shah, R., Bühlmann, P., Peters, J. (2022). 
+#' Structure Learning for Directed Trees. arXiv:
+#' <https://doi.org/10.48550/arxiv.2108.08871>.
+#'
+#' Lou, X., Hu, Y., Li, X. (2022). Linear Polytree Structural Equation Models:
+#' Structural Learning and Inverse Correlation Estimation. arXiv:
+#' <https://doi.org/10.48550/arxiv.2107.10955>
+#'
+#' @examples
+#' 
+#' \donttest{
+#'
+#' library(huge)
+#' data <- huge.npn(alsData$exprs)
+#' graph <- alsData$graph
+#'
+#' # graph-based trees
+#' seed <- V(graph)$name[sample(1:vcount(graph), 10)]
+#' tree1<- SEMtree(graph, data, seed=seed, type="ST", verbose=TRUE)
+#' tree2<- SEMtree(graph, data, seed=NULL, type="MST", verbose=TRUE)
+#'
+#' # data-driven trees
+#' V <- colnames(data)[colnames(data) %in% V(graph)$name]
+#' tree3<- SEMtree(NULL, data, seed=V, type="CAT", verbose=TRUE)
+#' tree4<- SEMtree(NULL, data, seed=V, type="CPDAG", alpha=0.05, verbose=TRUE)
+#'
+#' }
+#'
+SEMtree <- function(graph, data, seed, type = "ST", eweight = NULL, alpha = 0.05, verbose = FALSE, ...)
+{
+	# Set data and graph objects:
+	if (!is.null(graph)) {
+	 nodes <- colnames(data)[colnames(data) %in% V(graph)$name]
+	 ig <- induced_subgraph(graph, vids = V(graph)$name %in% nodes)
+	 X <- data[,nodes]
+	 if (!is.null(eweight)) {
+	  if (eweight == "kegg") E(graph)$weight <- (1 - E(graph)$weight)/2
+	  else if (eweight == "zsign") E(graph)$weight <- 1 - abs(E(graph)$zsign)
+	  else if (eweight == "pvalue") E(graph)$weight <- 1/(-log10(E(graph)$pv))
+	  else if (eweight == "custom") E(graph)$weight <- E(graph)$weight
+	 }
+	 else if (is.null(eweight)) {
+	  NegW <- -log(1-cor(X)^2)
+	  NegW <- NegW + 2*abs(min(NegW))
+	  A <- NegW*as_adj(ig, sparse=FALSE)[nodes,nodes]
+	  d_u <- ifelse(is.directed(ig), "directed", "undirected")
+	  graph <- graph_from_adjacency_matrix(A, mode=d_u, weighted=TRUE, diag=FALSE)
+	 }	
+	 # SteinerTree(ST) or MinimumSpanningTree(MST):
+	 if (!is.null(seed) & type == "ST") {
+	   T <- SteinerTree(graph, seed, eweight = E(graph)$weight)
+	 } else if (is.null(seed) & type == "MST") {
+	   eattr <- list(weight="mean", "ignore")
+	   ug <- as.undirected(graph, edge.attr.comb = eattr) 
+	   T <- mst(ug, weights = E(ug)$weight, algorithm = "prim")
+	 }
+	 if (is.directed(graph)){
+	   T <- orientEdges(ug=T, dg=graph)
+	 } else {
+	   VT<- V(T)$name
+	   RT <- cor(X[,VT])*as_adj(T, sparse=FALSE)[VT,VT]
+	   T <- CAT.R(data=RT)
+	 }
+	 V(T)$color <- ifelse(V(T)$name %in% seed, "aquamarine", "white")
+	 E1 <- attr(E(T), "vnames")
+	 E0 <- attr(E(graph), "vnames")
+	 E(T)$color <- ifelse(E1 %in% E0, "gray60", "green")
+	 E(T)$color <- ifelse(which_mutual(T), "gold", E(T)$color)
+
+	# Causal Addittive Tree(CAT) or CPDAG Tree:
+	} else if (is.null(graph)) {
+	  nodes <- colnames(data)[colnames(data) %in% seed]
+	  X<- data[, nodes]
+	  if (type == "CAT") T <- CAT.R(data = data.frame(X))
+	  if (type == "CPDAG") T <- CPDAG(X, alpha, verbose=TRUE)
+	}
+
+	if (verbose) {
+	 gplot(T)
+	 fit<- SEMrun(T, X, algo="ricf")
+	}
+	
+	return(Tree=T)
+}
+
+SteinerTree<- function(graph, seed, eweight, ...)
+{ 
+	# step 0) Define  distance matrix:
+	seed<- seed[which(seed %in% V(graph)$name)]
+	D<- distances(graph, v=seed, to=seed, mode="all", weights=eweight)
+	 	 
+	# step 1) Complete undirected distance graph Gd for terminal nodes:
+	Gd<- graph_from_adjacency_matrix(D, mode="undirected", weighted=TRUE)
+	Gd<- delete_edges(Gd, E(Gd)[which(E(Gd)$weight == Inf)])
+	#Gd<- Gd-igraph::edges(E(Gd)[which(E(Gd)$weight == Inf)])
+
+	# step 2) MST T1 of the complete distance graph Gd:
+	T1<- mst(Gd, weights=NULL, algorithm="prim")
+
+	# step 3) For each edge in T1, replace it with the shortest path in ig:
+	edge_list<- as_edgelist(T1)
+	N<- nrow(edge_list)
+	subgraph<- vector()
+
+	for (n in 1:N) { 
+	 i <- edge_list[n,1]
+	 j <- edge_list[n,2]
+	 # extract from ig all nodes of the shortest paths between edges of T1:
+	 path<- shortest_paths(graph, from=V(graph)[i], to=V(graph)[j], mode="all", weights=eweight, output="both")
+	 vpath<- V(graph)$name[path$vpath[[1]]]
+	 subgraph<- union(subgraph, vpath)	
+	}
+
+	# step 4) MST Ts of the extracted (induced) sub-graph Gs of ig:
+	Gs<- induced_subgraph(as.undirected(graph), unique(subgraph))
+	Ts<- mst(Gs, weights=NULL, algorithm="prim")
+
+	# step 5) Pruning non-seed genes with degree=1 (one at time) from Ts:
+	St<- Ts
+	idx<- ifelse(V(St)$name %in% seed == TRUE, FALSE, TRUE)
+
+	i<-1
+	I<-length(V(St)[idx])+1
+	while( i < I ) {
+	 K<- igraph::degree(St, v=V(St), mode="all")
+	 todel<- names(which(K == 1))
+	 todel<- todel[which(!todel %in% seed)]
+	 if( length(todel) > 0 ) {
+	  St<- delete.vertices(St, todel)
+	 }
+	 i<-i+1
+	}
+	
+	return(St)
+}
+
+CAT.R<- function(data, limit = 100, ...)
+{   	
+	local<- function(x){
+	 form <- formula(paste0("X",x[[2]],"~","s(X",x[[1]],",bs='ts')"))
+	 Cond_exp <- mgcv::gam(form, data = data)
+	 #form <- formula(paste0("X",x[[2]],"~","X",x[[1]]))
+	 #Cond_exp <- lm(form, data = data)
+	 form <- paste0("data$X",x[[2]]," - predict(Cond_exp, newdata=data)")
+	 Residual <- eval(parse(text=form))
+	 var(Residual)
+	}
+
+	# Saving original column names and setting standard column names
+	colNames <- gsub("X", "", colnames(data))
+	colnames(data) <- paste0("X",seq(1,ncol(data),1))
+
+	# Compute Gaussian Edge Weights:
+	if (is.data.frame(data)) {
+	 ig0 <- make_full_graph(ncol(data), directed = TRUE)
+	 Edges <- as_data_frame(ig0)
+	 x <- split(Edges, f = seq(nrow(Edges)))
+	 message("Score weighting of ", length(x), " edges...")
+	 op <- pbapply::pboptions(type = "timer", style = 2)
+
+	 if (ncol(data) > limit){
+	  n_cores <- parallel::detectCores(logical = FALSE)
+	  cl <- parallel::makeCluster(n_cores)
+	  parallel::clusterExport(cl, c("local"),
+	   envir = environment())
+	  Vr <- pbapply::pblapply(x, local, cl=cl)
+	  parallel::stopCluster(cl)
+	 }else{
+	  Vr <- pbapply::pblapply(x, local, cl=NULL)
+	 }
+
+	 Vr <- cbind(Edges, weight=do.call(rbind,Vr))
+	 Vx <- apply(data, 2, var)
+	 gW <- graph_from_data_frame(Vr)
+	 W <- as_adj(gW, attr="weight", sparse=FALSE)
+	 diag(W) <- Vx
+	}else{
+	 Vx <- rep(1, ncol(data))
+	 W <- 1 - data^2
+	}
+
+	# Chu-Liu-Edmonds's Algorithm
+	NegW <- -log(W%*%diag(1/Vx))
+	NegW <- NegW + 2*abs(min(NegW))
+	rownames(NegW) <- colnames(NegW) <- colNames
+	gx <- graph_from_adjacency_matrix(NegW, mode="directed", weighted=TRUE, diag=FALSE)
+	ax <- RBGL::edmondsOptimumBranching(as_graphnel(gx))
+	ax <- data.frame(t(ax$edgeList),t(ax$weight))
+	OptimalTree <- graph_from_data_frame(ax)
+
+	return(OptimalTree)
+}
+
+CPDAG <- function(data, alpha, verbose = FALSE, ...)
+{
+	# a) MST on the full graph (with zero edges)
+	R<- cor(data)
+	MI<- -nrow(data)*log(1-R^2 + 1e-16)
+	A<- ifelse(MI <= qchisq(1-alpha, df=1), 0, abs(R))
+	gA<- graph_from_adjacency_matrix(A, mode="undirected", weighted=TRUE, diag=FALSE)
+	MST<- mst(gA, weights = 1-E(gA)$weight, algorithm = "prim")
+			
+	# b) CPDAG recovery
+	g <- as_adjacency_matrix(MST, sparse=FALSE)
+	g <- ifelse(abs(g) != 0, 1, 0)
+	pdag <- g
+	ind <- which(g == 1, arr.ind = TRUE)
+	
+	# 1) v-structures for all node triplets i--k--j
+	for (i in seq_len(nrow(ind))) {
+	 x <- ind[i, 1]
+	 y <- ind[i, 2]
+	 allZ <- setdiff(which(g[y, ] == 1), x)
+	 for (z in allZ) {
+		if (g[x, z] == 0 & A[x, z] == 0) {
+		 if (verbose) {
+		  cat("\n", x, "->", y, "<-", z, "\n")
+		}
+		 pdag[x, y] <- pdag[z, y] <- 1
+		 pdag[y, x] <- pdag[y, z] <- 0
+		}
+	 }
+	}
+	if (sum(g) == sum(pdag)) {
+	 message(" WARNING: none v-structures are recovery, CPDAG=MST !\n")
+	 return(MST)
+	}
+	
+	# 2) apply Rule 1 in the resulting PDAG:
+	dagy <- graph2dagitty(pdag, graphType = "pdag")
+	# plot( dagitty::graphLayout(dagy) ) 
+	cpdag <- dagitty::orientPDAG(dagy)
+	# plot( dagitty::graphLayout(cpdag))
+	CPDAG <- dagitty2graph(cpdag)
+	# gplot(CPDAG)
+	E(CPDAG)$color <- ifelse(which_mutual(CPDAG), "gold", "gray60")
+		
+	return(CPDAG)
 }
 
 #' @title Optimal model search strategies
@@ -905,13 +1216,6 @@ getNetEdges<- function(graph, gnet, d, yes, ...)
 #' confounding factors, hence a weaker correction
 #' (default \code{alpha = 0.05}).
 #'
-#' @import lavaan
-#' @import igraph
-#' @import GGMncv
-#' @importFrom glmnet glmnet
-#' @importFrom RcppEigen fastLm
-#' @importFrom stats na.omit var cov qchisq pchisq p.adjust
-#' @importFrom corpcor is.positive.definite cor.shrink
 #' @export
 #'
 #' @return The output model as well as the adjusted dataset are returned
@@ -957,54 +1261,55 @@ modelSearch<- function(graph, data, gnet = NULL, d = 2, search = "basic",
                        beta = 0, method = "BH", alpha = 0.05,
                        limit = 30000, verbose = FALSE, ...)
 {
-  # Step by step search:
-  nodes<- colnames(data)[colnames(data) %in% V(graph)$name]
-  Zt<- as.matrix(data[,nodes])
-  Gt<- induced_subgraph(graph, vids= which(V(graph)$name %in% nodes))
-  cat("Step1: BAP deconfounding...\n")
-  Zt1<- quiet(SEMbap(Gt, Zt, method=method, alpha=alpha, limit=limit))
-  cat("Step2: DAG estimation...\n")
-  if(is.null(Zt1)) {
-    Zt1$data <- Zt
-    Gt1<- quiet(SEMdag(Gt, Zt1$data, beta=beta)$dag)
-  }else{
-    Gt1<- quiet(SEMdag(Zt1$dag, Zt1$data, beta=beta)$dag)
-  }
-  E1<- attr(E(Gt1), "vnames")
-  E0<- attr(E(Gt), "vnames")
-  E(Gt1)$color<- ifelse(E1 %in% E0, "gray", "green")
-  Gt1.new<- Gt1-E(Gt1)[which(E(Gt1)$color == "gray")]
-  if(ecount(Gt1.new) == 0){
-    return(message("STOP search: DAG with 0 new edges, decrease beta threshold !"))
-  }
-  #gplot(Gt1); gplot(Gt1.new); plot(Zt1$guu); plot(Zt1$dag)
-  
-  cat("Step3: DAG resize (remove edges/add nodes)...\n\n")
-  if (search == "basic"){
-    cat("None DAG resize for basic search !", "\n\n")
-    Gt2<- Gt1
-    dataZ<- Zt1$data
-  }
-  if (search == "direct"){
-    Gt2<- resizeGraph(g=list(Gt,Gt1.new), gnet, d=1, v=FALSE, verbose=FALSE)
-    dataZ<- Zt1$data
-  }
-  if (search == "inner") {
-    Gt2<- resizeGraph(g=list(Gt,Gt1.new), gnet, d=d, v=FALSE, verbose=FALSE)
-    dataZ<- Zt1$data
-  }
-  if (search == "outer") {
-    Gt2<- resizeGraph(g=list(Gt,Gt1.new), gnet, d=d, verbose=FALSE)
-    green<- V(Gt2)$name[V(Gt2)$color == "green"]
-    dataZ<- cbind(Zt1$data, data[,which(nodes %in% green)])
-  }
-  cat("Done.\n\n")
-  C_test<- Shipley.test(Gt2, dataZ, verbose=TRUE)
-  if (verbose) {
-    gplot(Gt2, main="Estimated Extended Graph")
-    cat("\n")
-    fit<- SEMrun(Gt2, dataZ, algo="ricf")
-  }
-  
-  return(list(graph = Gt2, data = dataZ))
+	# Step by step search:
+	nodes<- colnames(data)[colnames(data) %in% V(graph)$name]
+	Zt<- as.matrix(data[,nodes])
+	Gt<- induced_subgraph(graph, vids= which(V(graph)$name %in% nodes))
+	cat("Step1: BAP deconfounding...\n")
+	Zt1<- quiet(SEMbap(Gt, Zt, method=method, alpha=alpha, limit=limit))
+	cat("Step2: DAG estimation...\n")
+	if(is.null(Zt1)) {
+	 Zt1$data <- Zt
+	 Gt1<- quiet(SEMdag(Gt, Zt1$data, beta=beta)$dag)
+	}else{
+	 Gt1<- quiet(SEMdag(Zt1$dag, Zt1$data, beta=beta)$dag)
+	}
+	if (is.null(Gt1)) return(NULL)
+	E1<- attr(E(Gt1), "vnames")
+	E0<- attr(E(Gt), "vnames")
+	E(Gt1)$color<- ifelse(E1 %in% E0, "gray", "green")
+	Gt1.new<- Gt1 - E(Gt1)[which(E(Gt1)$color == "gray")]
+	if(ecount(Gt1.new) == 0){
+	 return(message("DAG with 0 new edges, decrease beta threshold !"))
+	}
+	#gplot(Gt1); gplot(Gt1.new); plot(Zt1$guu); plot(Zt1$dag)
+	
+	cat("Step3: DAG resize (remove edges/add nodes)...\n\n")
+	if (search == "basic"){
+	 cat("None DAG resize for basic search !", "\n\n")
+	 Gt2<- Gt1
+	 dataZ<- Zt1$data
+	}
+	if (search == "direct"){
+	 Gt2<- resizeGraph(g=list(Gt,Gt1.new), gnet, d=1, v=FALSE, verbose=FALSE)
+	 dataZ<- Zt1$data
+	}
+	if (search == "inner") {
+	 Gt2<- resizeGraph(g=list(Gt,Gt1.new), gnet, d=d, v=FALSE, verbose=FALSE)
+	 dataZ<- Zt1$data
+	}
+	if (search == "outer") {
+	 Gt2<- resizeGraph(g=list(Gt,Gt1.new), gnet, d=d, verbose=FALSE)
+	 green<- V(Gt2)$name[V(Gt2)$color == "green"]
+	 dataZ<- cbind(Zt1$data, data[,which(nodes %in% green)])
+	}
+	cat("Done.\n\n")
+	C_test<- Shipley.test(Gt2, dataZ, verbose=TRUE)
+	if (verbose) {
+	 gplot(Gt2, main="Estimated Extended Graph")
+	 cat("\n")
+	 fit<- SEMrun(Gt2, dataZ, algo="ricf")
+	}
+	
+	return(list(graph = Gt2, data = dataZ))
 }

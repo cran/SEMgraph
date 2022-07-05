@@ -1,3 +1,36 @@
+## Version 1.1.2 Release Notes
+* Added new SEMtree() function for tree-based structure learning methods.
+Four methods with graph (type= "ST" or "MST") and data-driven (type = "CAT"
+or "CPDAG") algorithms are implemented.
+
+* Deprecated activeModule() and corr2graph() functions in favor of new SEMtree()
+function. 
+
+* Added new dagitty2graph() function for conversion from a dagitty graph object
+to an igraph object.
+
+* Added new localCI.test() function for local conditional indipendence (CI)
+test of missing edges from an acyclic graph. This function is a wrapper to
+the function localTests() from package dagitty. 
+
+* Added new arguments for SEMace() function: type = c("parents", "minimal",
+"optimal") to choose the conditioning set Z of Y over X; effect = c("all",
+"source2sink", "direct",) to choose the type of X to Y effect. 
+
+* Added new argument for SEMdci() function: type = "ace" from ACE function()
+with fixed type= "parents", and effect="direct"
+
+* Change mergeGraph() function. Now the function combines groups of graph
+nodes using hierarchical clustering with prototypes derived from protoclust
+package or custom membership attribute (e.g., cluster membership derived from
+function clusterGraph()).  
+
+* Delete argument seed = c(0.05, 0.5, 0.5) in the function weigthGraph(). Now
+if group is NOT NULL also node weighting is actived, and node weights correspond
+to the sign and P-value of the z-test = b/SE(b) from glm(node ~ group).
+
+* Various fixed bugs
+
 ## Version 1.1.0 Release Notes
 * Major release with significant changes:
 
@@ -29,26 +62,16 @@ by the top-n ranking nodes.
 
 * Various fixed bugs
 
-## Version 1.0.5 Release Notes
-* Fixed bugs for an update from 2.0.0 to 2.1.0 of GGMncv
-
-## Version 1.0.4 Release Notes
-* Fixed bugs for CRAN checking
-
 ## Version 1.0.3 Release Notes
-* Fixed bugs for CRAN checking
+* First stable version on CRAN
+
 * Update kegg.RData (November, 2021)
+
 * Added kegg.pathways.RData (November, 2021)
+
 * Added pkgdown website
 
-## Version 1.0.2 Release Notes
-* Change `orientEdges` function
-* Added `graph2dagitty` function
-* Fixed bugs
-
-## Version 1.0.1 Release Notes
-* Change parallel computation using `pbapply` package
-* Fixed bugs 
+* Various fixed bugs
 
 ## Version 1.0.0 Release Notes
-* First stable version in GitHub
+* First stable version on GitHub
