@@ -45,10 +45,10 @@
 #' @param ... Currently ignored.
 #'
 #' @details SEMbap algorithm makes an exhaustive search of all possible
-#' missing edges of the mixed acyclic graph (BAP or DAG) via d-separation
+#' missing edges of the directed acyclic graph (DAG) via d-separation
 #' P-value screening.
-#' The d-separation test evaluates if two variables (X, Y) in an acyclic
-#' graph are conditionally independent for a given conditioning set Z,
+#' The d-separation test evaluates if two variables (X, Y) in a DAG
+#' are conditionally independent for a given conditioning set Z,
 #' The conditioning set Z is represented in a DAG by the union of the
 #' parent sets of X and Y (Shipley, 2000). A new bow-free covariance is
 #' added if there is a significant (X, Y) association, after multiple
@@ -59,15 +59,16 @@
 #' interpreted as the effect of a latent variable (LV) acting on both X
 #' and Y; i.e., the LV is an unobserved confounder. These LVs are then
 #' removed by conditioning them out from the observed data, as suggested 
-#' by Palluzzi and Grassi (2021).
+#' by Grassi, Palluzzi and Tarantino (2022).
 #'
-#' @return A list of 3 igraph objects and 1 data matrix:
+#' @return A list of four objects:
 #' \itemize{
-#' \item "dag", the output DAG (BAP = dag + guu),
-#' \item "guu", the bidirected graph of significant covariances,
+#' \item "dag", the directed acyclic graph (DAG) extracted from input graph,
 #' \item "gLV", the directed graph of latent variables (LV) underlying
 #' significant covariances (i.e., the canonical graph, where bidirected
 #' X <-> Y edges are substituted by directed edges X <- LV -> Y),
+#' \item "dsep", the data.frame of all d-separation tests over missing edges
+#' in the DAG 
 #' \item "data", the adjusted (de-correlated) data matrix.
 #' }
 #'
@@ -85,16 +86,16 @@
 #' Recursive Models With Correlated Errors.
 #' Structural Equation Modeling, 9(4): 459-474.
 #'
-#' Palluzzi F, Grassi M (2021). SEMgraph: An R Package for Causal Network
+#' Grassi M, Palluzzi F, Tarantino B (2022). SEMgraph: An R Package for Causal Network
 #' Analysis of High-Throughput Data with Structural Equation Models.
-#' <arXiv:2103.08332>
+#' Bioinformatics, 2022;, btac567, https://doi.org/10.1093/bioinformatics/btac567
 #'
 #' @examples
 #'
 #' # Model fitting
 #' sem0 <- SEMrun(graph = sachs$graph, data = log(sachs$pkc))
 #'
-#' # BAP estimation
+#' # BAP search
 #' BAP <- SEMbap(graph = sachs$graph, data = log(sachs$pkc), verbose = TRUE)
 #'
 #' # Model fitting (node perturbation) with adjusted data
@@ -121,7 +122,7 @@ SEMbap<- function(graph, data, method="BH", alpha=0.05, limit=30000,
 	 return(message("NULL covariance graph: ALL adjusted pvalues > ", alpha, "!"))
 	}
 	
-	# BAP, covariance and latent variables graphs (Ug, guu, gLV)
+	# Covariance and latent variables graphs (guu, gLV)
 	ftm<- as_edgelist(as.undirected(guu))
 	ftmLV<- NULL
 	V(guu)$color<- "white"
@@ -134,17 +135,55 @@ SEMbap<- function(graph, data, method="BH", alpha=0.05, limit=30000,
 	 plot(gLV, main="extended latent variables graph (gLV)")
 	 Sys.sleep(0)
 	}
-	guu<- as.directed(guu, mode="mutual")
-	Ug<- graph.union(g = list(dag, guu))
-	E1<- attr(E(Ug), "vnames")
-	E0<- attr(E(dag), "vnames")
-	E(Ug)$color<- ifelse(E1 %in% E0, "gray", "green")
-	
+		
 	# SEM fitting with adjusted bow-free covariances:
 	dataZ<- diagonalizePsi(g=list(dag,guu), data=dataY)
-	if (verbose) fit<- SEMrun(dag, dataZ, algo="ricf")
+	if (verbose) fit<- SEMrun(dag, dataZ, algo = "ricf", n_rep = 0)
 	
-	return( list(dag=dag, guu=as.undirected(guu), gLV=gLV, data=dataZ) )
+	return( list(dag=dag, gLV=gLV, dsep=dsep, data=dataZ) )
+}
+
+diagonalizePsi <- function(g = list(graph, guu), data, ...)
+{
+	# Set graph and data objects
+	graph <- g[[1]]
+	V <- colnames(data)[colnames(data) %in% V(graph)$name]
+	Y <- scale(data[, V])
+	graph <- induced_subgraph(graph, vids = which(V(graph)$name %in% V))
+	A0 <- as_adj(as.undirected(graph), type = "both", sparse = FALSE)[V, V]
+	
+	# Precision fitting of guu -> wi
+	guu <- g[[2]]
+	adj <- as_adj(guu, sparse = FALSE)
+	idx <- which(rownames(A0) %in% rownames(adj) == FALSE)
+	if (length(idx) > 0) {
+	 R <- matrix(0, length(idx), ncol(adj))
+	 C <- matrix(0, nrow(adj), length(idx))
+	 I <- diag(length(idx))
+	 adj <- rbind(cbind(I, R), cbind(C, adj))
+	 rownames(adj)[1:length(idx)] <- rownames(A0)[idx]
+	 colnames(adj)[1:length(idx)] <- rownames(A0)[idx]
+	}
+	
+	Sigma <- cor(Y[, colnames(adj)])
+	#wi<- GGMncv::constrained(Sigma, adj)$Theta
+	wi<- ggm::fitConGraph(amat=adj, S=Sigma, n=nrow(data))$Shat
+	colnames(wi) <- rownames(wi) <- colnames(adj)
+	if(!corpcor::is.positive.definite(wi)){
+	 wi<- corpcor::cor.shrink(wi, verbose = FALSE)
+	 #wi<- corpcor::cov.shrink(wi, verbose = TRUE)
+	 #wi<- corpcor::make.positive.definite(wi)
+	}
+	E<- eigen(wi) # Eigenvalues-eigenvectors of w
+	#R<- E$vectors%*%diag(sqrt(E$values))%*%t(E$vectors) #dim(R)
+	#sum(wi - R %*% R)
+	R<- E$vectors%*%diag(1/sqrt(E$values))%*%t(E$vectors) #dim(R)
+	#sum(solve(wi) - R %*% R)
+	Y <- Y[,colnames(wi)]
+	YR <- as.matrix(Y)%*%R
+	colnames(YR) <- colnames(Y)
+	
+	return(data = YR[, V])
 }
 
 #' @title Missing edge testing implied by a graph with Shipley's basis-set
@@ -173,8 +212,8 @@ SEMbap<- function(graph, data, method="BH", alpha=0.05, limit=30000,
 #' @export
 #'
 #' @return A list of three objects: (i) the DAG used to perform the Shipley
-#' test (ii) the list of all d-separation tests over missing edges in the
-#' input graph and (iii) the overall Shipley's' P-value.
+#' test (ii) the data.frame of all d-separation tests over missing edges in
+#' the DAG and (iii) the overall Shipley's' P-value.
 #'
 #' @author Mario Grassi \email{mario.grassi@unipv.it}
 #'
@@ -320,45 +359,6 @@ MCX2 <- function (model.df, n.obs, model.chi.square, n.sim = 10000, ...)
 	return(list(MCprob = MCprob, MLprob = MLprob))
 }
 
-diagonalizePsi <- function(g = list(graph, guu), data, ...)
-{
-	# Set graph and data objects
-	graph <- g[[1]]
-	V <- colnames(data)[colnames(data) %in% V(graph)$name]
-	Y <- scale(data[, V])
-	graph <- induced_subgraph(graph, vids = which(V(graph)$name %in% V))
-	A0 <- as_adj(as.undirected(graph), type = "both", sparse = FALSE)[V, V]
-	
-	# Precision fitting of guu -> wi
-	guu <- g[[2]]
-	adj <- as_adj(guu, sparse = FALSE)
-	idx <- which(rownames(A0) %in% rownames(adj) == FALSE)
-	if (length(idx) > 0) {
-	 R <- matrix(0, length(idx), ncol(adj))
-	 C <- matrix(0, nrow(adj), length(idx))
-	 I <- diag(length(idx))
-	 adj <- rbind(cbind(I, R), cbind(C, adj))
-	 rownames(adj)[1:length(idx)] <- rownames(A0)[idx]
-	 colnames(adj)[1:length(idx)] <- rownames(A0)[idx]
-	}
-	Sigma <- cor(Y[, colnames(adj)])
-	wi <- GGMncv::constrained(Sigma, adj)$Theta
-	colnames(wi) <- rownames(wi) <- colnames(adj)
-	if (!corpcor::is.positive.definite(wi)) {
-	 wi <- corpcor::cor.shrink(wi, verbose = FALSE)
-	 #wi <- corpcor::cov.shrink(wi, verbose = TRUE)
-	 #wi <- corpcor::make.positive.definite(wi)
-	}
-	E <- eigen(wi) # Eigenvalues and eigenvectors of w
-	R <- E$vectors%*%diag(sqrt(E$values))%*%t(E$vectors)
-	#sum(wi - R %*% R)
-	Y <- Y[,colnames(wi)]
-	YR <- as.matrix(Y)%*%R
-	colnames(YR) <- colnames(Y)
-	
-	return(data = YR[, V])
-}
-
 #' @title Estimate the optimal DAG from an input graph
 #'
 #' @description Extract the optimal DAG from an input graph, using
@@ -490,7 +490,7 @@ SEMdag<- function(graph, data, LO="TO", beta=0, lambdas=NA, penalty=TRUE, verbos
 	
 	if (verbose) {
 	 gplot(ig2)
-	 fit<- SEMrun(ig2, X, algo="ricf")
+	 fit<- SEMrun(ig2, X, algo = "ricf", n_rep = 0)
 	}
 	
 	return( list(dag=ig2, dag.new=ig3, dag.old=ig4) )
@@ -621,18 +621,17 @@ subsets<- function (z, Y, Theta, J, mtd = "seqrep")
 #' @param ... Currently ignored.
 #'
 #' @details Typically, the first graph is an estimated causal graph (DAG),
-#' and the second graph is the output of either \code{\link[SEMgraph]{SEMdag}}
-#' or \code{\link[SEMgraph]{SEMbap}}.
-#' In the former we use the new inferred causal structure stored in the
-#' \code{dag.new} object. In the latter, we use the new inferred covariance
-#' structure stored in the \code{guu} object. Both directed (causal) edges
-#' inferred by \code{SEMdag()} and covariances (i.e., bidirected edges)
-#' added by \code{SEMbap()}, highlight emergent hidden topological
-#' proprieties, absent in the input graph. Estimated directed edges between
-#' nodes X and Y are interpreted as either direct links or direct paths
-#' mediated by hidden connector nodes. Covariances between any two bow-free
-#' nodes X and Y may hide causal relationships, not explicitly represented
-#' in the current model. Conversely, directed edges could be redundant or artifact,
+#' and the second graph is the output of \code{\link[SEMgraph]{SEMdag}} or
+#' an external covariance graph. In the former we use the new inferred
+#' causal structure stored in the \code{dag.new} object. In the latter, we
+#' use the new inferred covariance structure stored in the covariance graph
+#' object. Both directed (causal) edges and covariances (i.e., bidirected
+#' edges) highlight emergent hidden topological proprieties, absent in the
+#' input graph. Estimated directed edges between nodes X and Y
+#' are interpreted as either direct links or direct paths mediated by hidden
+#' connector nodes. Covariances between any two bow-free nodes X and Y may
+#' hide causal relationships, not explicitly represented in the current model.
+#' Conversely, directed (or bi-directed) edges could be redundant or artifact,
 #' specific to the observed data and could be deleted.
 #' Function \code{resizeGraph()} leverage on these concepts to extend/reduce a
 #' causal model, importing new connectors or deleting estimated edges, if they are
@@ -647,9 +646,9 @@ subsets<- function (z, Y, Theta, J, mtd = "seqrep")
 #' @author Mario Grassi \email{mario.grassi@unipv.it}
 #'
 #' @references
-#' Palluzzi F, Grassi M (2021). SEMgraph: An R Package for Causal Network
+#' Grassi M, Palluzzi F, Tarantino B (2022). SEMgraph: An R Package for Causal Network
 #' Analysis of High-Throughput Data with Structural Equation Models.
-#' <arXiv:2103.08332>
+#' Bioinformatics, 2022;, btac567, https://doi.org/10.1093/bioinformatics/btac567
 #'
 #' @return "Ug", the re-sized graph, the graph union of the causal graph \code{graph1}
 #' and the re-sized graph \code{graph2}
@@ -673,11 +672,33 @@ subsets<- function (z, Y, Theta, J, mtd = "seqrep")
 #' ext <- resizeGraph(g=list(dag$dag, dag$dag.new), gnet = kegg, d = 2)
 #' gplot(ext) 
 #'
-#' # Extend a graph using the inferred bow-free path diagram (dag+guu):
+#' # Create a directed graph from correlation matrix, using
+#' # i) an empty graph as causal graph,
+#' # ii) a covariance graph,
+#' # iii) KEGG as reference:
 #'
-#' bap <- SEMbap(graph = G, data = als.npn, gnet = kegg, alpha = 0.01)
-#' ext <- resizeGraph(g=list(bap$dag, bap$guu), gnet = kegg, d = 1, v = FALSE)
-#' gplot(ext)
+#' corr2graph<- function(R, n, alpha=5e-6, ...)
+#' {
+#' 	Z <- qnorm(alpha/2, lower.tail=FALSE)
+#'	thr <- (exp(2*Z/sqrt(n-3))-1)/(exp(2*Z/sqrt(n-3))+1)
+#' 	A <- ifelse(abs(R) > thr, 1, 0)
+#' 	diag(A) <- 0
+#' 	return(graph_from_adjacency_matrix(A, mode="undirected"))
+#' }
+#'
+#' v <- which(colnames(als.npn) %in% V(G)$name)
+#' selectedData <- als.npn[, v]
+#' G0 <- make_empty_graph(n = ncol(selectedData))
+#' V(G0)$name <- colnames(selectedData)
+#' G1 <- corr2graph(R = cor(selectedData), n= nrow(selectedData))
+#' ext <- resizeGraph(g=list(G0, G1), gnet = kegg, d = 2, v = TRUE)
+#' 
+#' #Graphs
+#' old.par <- par(no.readonly = TRUE)
+#' par(mfrow=c(1,2), mar=rep(1,4))
+#' plot(G1, layout = layout.circle)
+#' plot(ext, layout = layout.circle)
+#' par(old.par)
 #'
 #' }
 #'
@@ -783,15 +804,17 @@ getNetEdges<- function(graph, gnet, d, yes, ...)
 #' @title Tree-based structure learning methods
 #'
 #' @description Four tree-based structure learning methods are implemented
-#' with graph and data-driven algorithms. The graph methods refer to the 
-#' fast Steiner Tree (ST) Kou's algorithm, and the identification of 
-#' the Minimum Spanning Tree (MST) with Prim's algorithm. 
-#' The data-driven methods propose fast and scalable procedures based on 
-#' Chow-Liu–Edmonds’ algorithm (CLE) to recover the skeleton of the
-#' polytree. The first method, called Causal Additive Trees (CAT) uses
-#' pairwise addittive weights as input for CLE algorithm. The second one
-#' applies CLE algorithm for skeleton recovery and extends the skeleton to
-#' a Completed Partially Directed Acyclic Graph (CPDAG).
+#' with graph and data-driven algorithms. A tree ia an acyclic graph with p vertices
+#' and p-1 edges. The graph method refers to the  Steiner Tree (ST), a tree from an
+#' undirected graph that connect "seed" with additional nodes in the
+#' "most compact" way possible. The data-driven methods propose fast and scalable
+#' procedures based on Chu-Liu–Edmonds’ algorithm (CLE) to recover a tree from a full
+#' graph. The first method, called Causal Additive Trees (CAT) uses pairwise mutual
+#' weights as input for CLE algorithm to recover a directed tree (an "arborescence").
+#' The second one applies CLE algorithm for skeleton recovery and extends the skeleton
+#' to a tree (a "polytree") represented by a Completed Partially Directed Acyclic Graph
+#' (CPDAG). Finally, the Minimum Spanning Tree (MST) connecting an undirected graph (or
+#' on an undirected full graph) with minimal edge weights can be identified.
 #'
 #' @param graph An igraph object.
 #' @param data A matrix or data.frame. Rows correspond to subjects, and
@@ -800,44 +823,46 @@ getNetEdges<- function(graph, gnet, d, yes, ...)
 #' @param type Tree-based structure learning method. Four algorithms 
 #' are available:
 #' \itemize{
-#' \item "ST" (default). Steiner Tree (ST) identification via fast Kou's algorithm 
-#' (1981) connecting a set of seed nodes (called Terminal vertices) with connector
-#' nodes (called Steiner vertices) from input graph as defined in \code{graph}
-#' with minimal total distance on its edges. 
-#' \item "MST". Minimum Spanning Tree (MST) identification via Prim's algorithm
-#' (Prim, 1957). The latter finds the subset of edges that includes every vertex
-#' of the graph (as defined in \code{graph}) such that the sum of the weights 
-#' of the edges can be minimized. The argument \code{seed} is
-#' set to NULL (i.e., no seed nodes are needed).
-#' \item "CAT". Causal additive trees (CAT) algorithm as in Jakobsen et al. 
-#' (2022). While the previous algorithms rely on the input graph, the "CAT" 
-#' algorithm is data-driven. The argument \code{graph} is set to NULL 
-#' (i.e., no input graph is needed). In the first step, a (univariate) generalized
-#' additive model (GAM) is employed to estimate the conditional
-#' expectations E[X_{i}|X_{j} = x] for all i != j, then use these to construct edge
-#' weights as inputs to the Chu–Liu–Edmonds’ algorithm (Chow and Liu, 1968).
-#' Argument \code{seed} must be specified to analyse a subset of nodes (variables)
-#' of interest.
+#' \item "ST". Steiner Tree (ST) identification via fast Kou's algorithm 
+#' (Kou et al, 1981) connecting a set of seed nodes (called Terminal vertices)
+#' with connector nodes (called Steiner vertices) from input graph as defined
+#' in \code{graph} with minimal total distance on its edges. By default the edge
+#' weights are based on the pairwise correlation, 1-abs(cor(j,k)). If input
+#' graph has E(graph)$weight=1, and \code{eweight = "custom"}, ST seeks a minimum
+#' subtree (i.e. subtree with minimal number of edges).
+#' \item "CAT" (default). Causal additive trees (CAT) algorithm as in Jakobsen et al. 
+#' (2022). The argument \code{graph} is set to NULL (i.e., no input graph is needed).
+#' In the first step, a (univariate) generalized additive model (GAM) is employed
+#' to estimate the residual variances, var(X(j) - [X(j)|X(k)]) for all j != k,
+#' then use these to construct edge weights as inputs to the Chu–Liu–Edmonds’
+#' algorithm (Chow and Liu, 1968) to recover the arborescence. Argument \code{seed}
+#' must be specified to analyse a subset of nodes (variables) of interest.
 #' \item "CPDAG". CLE algorithm for Skeleton Recovery and CPDAG
 #' estimation as in Lou et al. (2021). Together with "CAT" algorithm, "CPDAG" is 
 #' data-driven and the argument \code{graph} is set to NULL.
 #' The key idea is to first recover the skeleton of the polytree by applying 
-#' the CLE algorithm  to the pairwise sample correlations of the data matrix.
+#' the CLE algorithm to the pairwise sample correlations of the data matrix.
 #' After the skeleton is recovered, the set of all v-structures can be correctly
 #' identified via a simple thresholding approach to pairwise sample correlations.
-#' Finally, the CPDAG of the polytree can be found applying iteratively only
-#' Rule 1 of Meek (1995). Argument \code{seed} must be specified to analyse a
-#' subset of nodes (variables) of interest.}
+#' CPDAG can be found applying iteratively only Rule 1 of Meek (1995).
+#' Argument \code{seed} must be specified to analyse a subset of nodes
+#' (variables) of interest.
+#' \item "MST". Minimum Spanning Tree (MST) identification via Prim's algorithm
+#' (Prim, 1957). The latter finds the subset of edges that includes every vertex
+#' of the graph (as defined in \code{graph}) such that the sum of the weights 
+#' of the edges can be minimized. The argument \code{seed} is set to NULL (i.e.,
+#' no seed nodes are needed), or if argument \code{seed} is not NULL, argument
+#' \code{graph} is set to NULL to recover the MST of the full graph.}
 #' @param eweight Edge weight type for igraph object derived from
 #' \code{\link[SEMgraph]{weightGraph}} or from user-defined distances. 
 #' This option determines the weight-to-distance transform.
 #' If set to "NULL" (default), edge weights will be internally computed
-#' equal to correlation data-driven methods (i.e., Mutual Information). 
+#' equal to 1 - abs(cor), i.e., 1 - abs(pairwise Pearson's correlation).
 #' If \code{eweight = "kegg"}, repressing interactions (-1) will be set 
-#' to 1 (maximum distance), neutral interactions (0) will be set to 0.5, 
-#' and activating interactions (+1) will be set to 0 (minimum distance).
+#' to 2 (maximum distance), neutral interactions (0) will be set to 1, 
+#' and activating interactions (+1) will be set to 1 (minimum distance).
 #' If \code{eweight = "zsign"}, all significant interactions will be set 
-#' to 0 (minimum distance), while non-significant ones will be set to 1.
+#' to 1 (minimum distance), while non-significant ones will be set to 2.
 #' If \code{eweight = "pvalue"}, weights (p-values) will be transformed 
 #' to the inverse of negative base-10 logarithm. 
 #' If \code{eweight = "custom"}, the algorithm will use the distance 
@@ -852,16 +877,13 @@ getNetEdges<- function(graph, gnet, d, yes, ...)
 #'
 #' @details If the input graph is a directed graph, ST and MST undirected trees are
 #' converted in directed trees using the \code{\link[SEMgraph]{orientEdges}} function.
-#' If the input graph is an undirected graph, ST and MST undirected trees are 
-#' converted in a directed polytree using CAT algorithm with (univariate) linear
-#' regression for conditional expectation mapped on the output tree.
 #'
 #' @export
 #'
 #' @return An \code{igraph} object. If \code{type = "ST"}, seed nodes are 
-#' colored in green and connectors in white. If \code{type = "ST"} and
-#' \code{type = "MST"}, edges are colored in green if not present in the input
-#' graph. If \code{type = "CPDAG"}, bidirected edges are colored in golden
+#' colored in "aquamarine" and connectors in "white". If \code{type = "ST"} and
+#' \code{type = "MST"}, edges are colored in "green" if not present in the input,
+#' graph. If \code{type = "CPDAG"}, bidirected edges are colored in "black"
 #' (if the algorithm is not able to establish the direction of the relationship
 #' between x and y).
 #'
@@ -910,7 +932,7 @@ getNetEdges<- function(graph, gnet, d, yes, ...)
 #'
 #' }
 #'
-SEMtree <- function(graph, data, seed, type = "ST", eweight = NULL, alpha = 0.05, verbose = FALSE, ...)
+SEMtree <- function(graph, data, seed, type = "CAT", eweight = NULL, alpha = 0.05, verbose = FALSE, ...)
 {
 	# Set data and graph objects:
 	if (!is.null(graph)) {
@@ -918,53 +940,52 @@ SEMtree <- function(graph, data, seed, type = "ST", eweight = NULL, alpha = 0.05
 	 ig <- induced_subgraph(graph, vids = V(graph)$name %in% nodes)
 	 X <- data[,nodes]
 	 if (!is.null(eweight)) {
-	  if (eweight == "kegg") E(graph)$weight <- (1 - E(graph)$weight)/2
-	  else if (eweight == "zsign") E(graph)$weight <- 1 - abs(E(graph)$zsign)
+	  if (eweight == "kegg") E(graph)$weight <- 2 - E(graph)$weight
+	  else if (eweight == "zsign") E(graph)$weight <- 2 - abs(E(graph)$zsign)
 	  else if (eweight == "pvalue") E(graph)$weight <- 1/(-log10(E(graph)$pv))
 	  else if (eweight == "custom") E(graph)$weight <- E(graph)$weight
 	 }
 	 else if (is.null(eweight)) {
-	  NegW <- -log(1-cor(X)^2)
-	  NegW <- NegW + 2*abs(min(NegW))
-	  A <- NegW*as_adj(ig, sparse=FALSE)[nodes,nodes]
+	  A <- (1-abs(cor(X)))*as_adj(ig, sparse=FALSE)[nodes,nodes]
 	  d_u <- ifelse(is.directed(ig), "directed", "undirected")
 	  graph <- graph_from_adjacency_matrix(A, mode=d_u, weighted=TRUE, diag=FALSE)
-	 }	
+	 }
 	 # SteinerTree(ST) or MinimumSpanningTree(MST):
 	 if (!is.null(seed) & type == "ST") {
 	   T <- SteinerTree(graph, seed, eweight = E(graph)$weight)
-	 } else if (is.null(seed) & type == "MST") {
+	 }else if(is.null(seed) & type == "MST") {
 	   eattr <- list(weight="mean", "ignore")
 	   ug <- as.undirected(graph, edge.attr.comb = eattr) 
 	   T <- mst(ug, weights = E(ug)$weight, algorithm = "prim")
 	 }
-	 if (is.directed(graph)){
-	   T <- orientEdges(ug=T, dg=graph)
-	 } else {
-	   VT<- V(T)$name
-	   RT <- cor(X[,VT])*as_adj(T, sparse=FALSE)[VT,VT]
-	   T <- CAT.R(data=RT)
-	 }
+	 if (is.directed(graph)) T <- orientEdges(ug=T, dg=graph) 
+	 T <- quiet(properties(T)[[1]])
 	 V(T)$color <- ifelse(V(T)$name %in% seed, "aquamarine", "white")
 	 E1 <- attr(E(T), "vnames")
 	 E0 <- attr(E(graph), "vnames")
 	 E(T)$color <- ifelse(E1 %in% E0, "gray60", "green")
-	 E(T)$color <- ifelse(which_mutual(T), "gold", E(T)$color)
+	 E(T)$color <- ifelse(which_mutual(T), "black", E(T)$color)
+	 E(T)$width <- ifelse(which_mutual(T), 2, 1)
 
-	# Causal Addittive Tree(CAT) or CPDAG Tree:
-	} else if (is.null(graph)) {
+	# Causal Addittive Tree(CAT) or CPDAG Tree or MST:
+	}else if(is.null(graph)) {
 	  nodes <- colnames(data)[colnames(data) %in% seed]
-	  X<- data[, nodes]
+	  X <- data[, nodes]
 	  if (type == "CAT") T <- CAT.R(data = data.frame(X))
 	  if (type == "CPDAG") T <- CPDAG(X, alpha, verbose=TRUE)
+	  if (type == "MST") {
+	   A <- 1-abs(cor(X))
+	   gA <- graph_from_adjacency_matrix(A, mode="undirected", weighted=TRUE, diag=FALSE)
+	   T <- mst(gA, weights = E(gA)$weight, algorithm = "prim")
+	  }
 	}
 
 	if (verbose) {
 	 gplot(T)
-	 fit<- SEMrun(T, X, algo="ricf")
+	 fit <- SEMrun(T, X, algo = "ricf", n_rep = 0)
 	}
 	
-	return(Tree=T)
+	return(Tree = T)
 }
 
 SteinerTree<- function(graph, seed, eweight, ...)
@@ -1117,8 +1138,10 @@ CPDAG <- function(data, alpha, verbose = FALSE, ...)
 	# plot( dagitty::graphLayout(cpdag))
 	CPDAG <- dagitty2graph(cpdag)
 	# gplot(CPDAG)
-	E(CPDAG)$color <- ifelse(which_mutual(CPDAG), "gold", "gray60")
-		
+	CPDAG <- quiet(properties(CPDAG)[[1]])
+	E(CPDAG)$color <- ifelse(which_mutual(CPDAG), "black", "gray60")
+	E(CPDAG)$width <- ifelse(which_mutual(CPDAG), 2, 1)
+	
 	return(CPDAG)
 }
 
@@ -1308,7 +1331,7 @@ modelSearch<- function(graph, data, gnet = NULL, d = 2, search = "basic",
 	if (verbose) {
 	 gplot(Gt2, main="Estimated Extended Graph")
 	 cat("\n")
-	 fit<- SEMrun(Gt2, dataZ, algo="ricf")
+	 fit<- SEMrun(Gt2, dataZ, algo = "ricf", n_rep = 0)
 	}
 	
 	return(list(graph = Gt2, data = dataZ))

@@ -11,6 +11,8 @@ SEMrun(
   fit = 0,
   algo = "lavaan",
   start = NULL,
+  SE = "standard",
+  n_rep = 1000,
   limit = 100,
   ...
 )
@@ -53,10 +55,18 @@ Fixed values may compromise model fitting, and scaling them is a safe
 option to avoid this problem. As a rule of thumb, to our experience,
 \code{start = 0.1} generally performs well with {-1, 0, 1} weights.}
 
+\item{SE}{If "standard" (default), with \code{algo = "lavaan"},
+conventional standard errors are computed based on inverting the observed
+information matrix. If "none", no standard errors are computed.}
+
+\item{n_rep}{Number of randomization replicates (default = 1000),
+for permutation flip or boostrap samples, if \code{algo = "ricf"}.}
+
 \item{limit}{An integer value corresponding to the network size
 (i.e., number of nodes). Beyond this limit, the execution under
-\code{algo = "lavaan"} will be ridirected to \code{algo = "ricf"}, if
-fit is either 0 or 1, or to \code{algo = "ggm"}, if \code{fit = 2}.
+\code{algo = "lavaan"} will run with \code{SE = "none"}, if 
+\code{fit = 0}, or will be ridirected to \code{algo = "ricf"}, if
+\code{fit = 1}, or to \code{algo = "ggm"}, if \code{fit = 2}.
 This redirection is necessary to reduce the computational demand of
 standard error estimation by lavaan. Increasing this number will
 enforce lavaan execution when \code{algo = "lavaan"}.}
@@ -100,9 +110,7 @@ of parameter estimates. Beta coefficients (i.e., direct effects) are
 estimated from directed interactions and residual covariances (psi
 coefficients) from bidirected, undirected, or mutual interactions.
 If a group variable is given, exogenous group effects on nodes (gamma
-coefficients) will be estimated. This will also lead to the estimation
-of a set of aggregated group effects, if \code{algo = "ricf"} (see
-\code{\link[SEMgraph]{SEMgsa}}).
+coefficients) or edges (delta coefficients) will be estimated.
 By default, maximum likelihood parameter estimates and P-values for
 parameter sets are computed by conventional z-test (= estimate/SE),
 and fits it through the \code{\link[lavaan]{lavaan}} function, via
@@ -133,21 +141,13 @@ than \code{\link[lavaan]{lavaan}} in case of large input graphs.
 
 #### Model fitting (no group effect)
 
-sem0 <- SEMrun(graph = sachs$graph, data = log(sachs$pkc), algo = "lavaan")
+sem0 <- SEMrun(graph = sachs$graph, data = log(sachs$pkc))
 summary(sem0$fit)
 head(parameterEstimates(sem0$fit))
 
-sem0 <- SEMrun(graph = sachs$graph, data = log(sachs$pkc), algo = "ricf")
-summary(sem0$fit)
-head(sem0$fit$parameterEstimates)
-
-sem0 <- SEMrun(graph = sachs$graph, data = log(sachs$pkc), algo = "cggm")
-summary(sem0$fit)
-head(sem0$fit$parameterEstimates)
-
 # Graphs
-gplot(sem0$graph, main = "edge differences")
-plot(sem0$graph, layout = layout.circle, main = "edge differences")
+gplot(sem0$graph, main = "significant edge weights")
+plot(sem0$graph, layout = layout.circle, main = "significant edge weights")
 
 
 #### Model fitting (common model, group effect on nodes)
@@ -161,8 +161,8 @@ print(sem1$gest)
 head(parameterEstimates(sem1$fit))
 
 # Graphs
-gplot(sem1$graph, main = "node differences")
-plot(sem1$graph, layout = layout.circle, main = "node differences")
+gplot(sem1$graph, main = "Between group node differences")
+plot(sem1$graph, layout = layout.circle, main = "Between group node differences")
 
 
 #### Two-group model fitting (group effect on edges)
@@ -198,8 +198,6 @@ g2 <- g2 - E(g2)[-which(E(g2)$color != "gray50")]
 g <- properties(g2)[[1]]
 
 # plot graph
-library(org.Hs.eg.db)
-V(g)$label <- mapIds(org.Hs.eg.db, V(g)$name, 'SYMBOL', 'ENTREZID')
 E(g)$color<- E(g2)$color[E(g2) \%in\% E(g)]
 gplot(g, l = "fdp", main="node and edge group differences")
 
@@ -228,19 +226,13 @@ Journal of Machine Learning Research, 10(Oct): 2329-2348.
 Larson JL and Owen AB (2015). Moment based gene set tests. BMC
 Bioinformatics, 16: 132. <https://doi.org/10.1186/s12859-015-0571-7>
 
-Palluzzi F, Grassi M (2021). SEMgraph: An R Package for Causal Network
+Grassi M, Palluzzi F, Tarantino B (2022). SEMgraph: An R Package for Causal Network
 Analysis of High-Throughput Data with Structural Equation Models.
-<arXiv:2103.08332>
-
-Williams D (2020). GGMncv: Gaussian Graphical Models with Non-Convex
-Penalties. R package version 1.1.0.
-<https://CRAN.R-project.org/package=GGMncv/>
+Bioinformatics, 2022;, btac567, https://doi.org/10.1093/bioinformatics/btac567
 }
 \seealso{
-See \code{\link[ggm]{fitAncestralGraph}} for RICF algorithm
-details, \code{\link[flip]{flip}} for randomization P-values, and
-\code{\link[GGMncv]{constrained}} for constrained GGM, and
-\code{\link[GGMncv]{inference}} for de-sparsified P-values.
+See \code{\link[ggm]{fitAncestralGraph}} and \code{\link[ggm]{fitConGraph}}
+for RICF algorithm and constrained GGM algorithm details, respectively.
 }
 \author{
 Mario Grassi \email{mario.grassi@unipv.it}

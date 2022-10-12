@@ -1,3 +1,21 @@
+## Version 1.1.3 Release Notes
+* Added in SEMrun() function the argumet SE = c("standard" or "none"), if
+algo = "lavaan".
+
+* Added in SEMrun() function the bootstrap resampling of SE (95% CI), and
+new argoment n_rep = 1000 (default) to set the bootstrap samples or permutation
+flip, if algo = "ricf".
+
+* Added in SEMrun() function the de-sparsified SE (95% CI) of omega parameters 
+(the elements of the precision matrix), if algo = "cggm".
+
+* Added new parameterEstimates() function for parameter estimates output
+of a fitted SEM for RICF and CGGM algorithms similar to lavaan.
+
+* Updating summary.RICF() and summary.GGM() functions with parameterEstimates().
+
+* Various fixed bugs
+
 ## Version 1.1.2 Release Notes
 * Added new SEMtree() function for tree-based structure learning methods.
 Four methods with graph (type= "ST" or "MST") and data-driven (type = "CAT"

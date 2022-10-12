@@ -76,16 +76,16 @@
 #'
 #' @examples
 #'
-#' # ACE estimation, without group
+#' # ACE without group, O-set, all effects:
 #' ace1 <- SEMace(graph = sachs$graph, data = log(sachs$pkc),
-#'                group = NULL, type="parents", effect="all",
-#'                method = "BH", alpha = 0.05)
+#'                group = NULL, type = "optimal", effect = "all",
+#'                method = "BH", alpha = 0.05, boot = NULL)
 #' print(ace1)
 #'
-#' # ACE with group perturbation
+#' # ACE with group perturbation, Pa-set, direct effects:
 #' ace2 <- SEMace(graph = sachs$graph, data = log(sachs$pkc),
-#'                group = sachs$group, type="optimal", effect="direct",
-#'                method = "none", alpha = 0.05)
+#'                group = sachs$group, type = "parents", effect = "direct",
+#'                method = "none", alpha = 0.05, boot = NULL)
 #' print(ace2)
 #'
 SEMace<- function(graph, data, group=NULL, type="parents", effect="all", method="BH", alpha=0.05, boot=NULL, ...)
@@ -107,7 +107,7 @@ SEMace<- function(graph, data, group=NULL, type="parents", effect="all", method=
 	D<- distances(dag, mode="out", weights=NA)
 	D<- ifelse(D == Inf, 0, D) #sum(D>0)
 	if (effect == "all") {
-	 gD<- simplify(graph_from_adjacency_matrix(D, mode="directed", weighted=TRUE))
+	 gD<- igraph::simplify(graph_from_adjacency_matrix(D, mode="directed", weighted=TRUE))
 	}
 	if (effect == "source2sink") {
 	 din<- igraph::degree(dag, mode= "in")
@@ -115,11 +115,11 @@ SEMace<- function(graph, data, group=NULL, type="parents", effect="all", method=
 	 dout<- igraph::degree(dag, mode= "out")
 	 Vy<- V(dag)$name[dout == 0]
 	 Dxy<- D[c(Vx,Vy),c(Vx,Vy)]
-	 gD<- simplify(graph_from_adjacency_matrix(Dxy, mode="directed", weighted=TRUE))
+	 gD<- igraph::simplify(graph_from_adjacency_matrix(Dxy, mode="directed", weighted=TRUE))
 	}
 	if (effect == "direct") {
 	 Dd<- ifelse(D == 1, 1, 0)
-	 gD<- simplify(graph_from_adjacency_matrix(Dd, mode="directed", weighted=TRUE))
+	 gD<- igraph::simplify(graph_from_adjacency_matrix(Dd, mode="directed", weighted=TRUE))
 	}
 	cat("\n","Frequency distribution of path length from X to Y :")
 	print(table(E(gD)$weight)); cat("\n")
@@ -127,7 +127,7 @@ SEMace<- function(graph, data, group=NULL, type="parents", effect="all", method=
 	# Compute total effect (theta=ACE)
 	theta<- NULL
 	res<- NULL
-	ftm<- as_data_frame(gD)
+	ftm<- igraph::as_data_frame(gD)
 	for (i in 1:nrow(ftm)) {
 	 cat("\r","ACE=", i, "of", nrow(ftm)) 
      flush.console()
@@ -161,25 +161,24 @@ SEMace<- function(graph, data, group=NULL, type="parents", effect="all", method=
 	  }else{
 	   try(est<- boot.lmest(x, y, Z, R=boot))
 	  }
-	  try(res<- data.frame(lapply(est, function(y) if(is.numeric(y)) round(y, 3) else y)))
 	 }else{
 	  try(est<- lmest2(x, y, Z, group, boot))
-	  try(res<- data.frame(lapply(est, function(y) if(is.numeric(y)) round(y, 3) else y)))
 	 }
-	 theta<- rbind(theta,cbind(pathL=ftm[i,3],res))
+	 theta<- rbind(theta,cbind(pathL=ftm[i,3],est))
  	}
     cat("\n")
 	theta<- subset(theta, p.adjust(theta$pvalue, method=method) < alpha)
+	class(theta)<- c("lavaan.data.frame" ,"data.frame")
 	return( theta )
 }
 
 boot.lmest<- function(x, y, Z, R,...)
 {
 	# LM fitting y ~ x + Z :
-	#ncpus<- parallel::detectCores(logical = TRUE)
 	est<- function(Z, i) { 
 	 stats::lm.fit(as.matrix(Z[i,-1]),Z[i,1])$coefficients[1]
 	}
+	#ncpus<- parallel::detectCores(logical = FALSE)
 	#xboot<- boot::boot(Z, est, R=1000, parallel="snow", ncpus=ncpus)
 	xboot<- boot::boot(Z, est, R=R)
 	t0<- xboot$t0
@@ -394,15 +393,8 @@ SEMpath <- function(graph, data, group, from, to, path, verbose = FALSE, ...)
 #'                     ace = ace)
 #'
 #' print(paths$dfp)
-#' head(parameterEstimates(paths$fit$P61))
-#' gplot(paths$paths$P61)
-#'
-#' path61 <- SEMpath(graph = alsData$graph, data = adjData,
-#'                   group = alsData$group,
-#'                   from = "1616",
-#'                   to = "4741",
-#'                   path = "directed",
-#'                   verbose = TRUE)
+#' head(parameterEstimates(paths$fit[[1]]))
+#' gplot(paths$paths[[1]])
 #'
 #' }
 #'
