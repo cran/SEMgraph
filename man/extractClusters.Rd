@@ -40,9 +40,12 @@ cluster.}
 \item{...}{Currently ignored.}
 }
 \value{
-(i) clusters: list clusters as igraph objects;
-(ii) fit: list of fitting results for each cluster as a lavaan object;
-(iii) dfc: data.frame of summary results
+A list of 3 objects:
+\enumerate{
+\item "clusters", list of clusters as igraph objects;
+\item "fit", list of fitting results for each cluster as a lavaan object;
+\item "dfc", data.frame of summary results.
+}
 }
 \description{
 Extract and fit clusters from an input graph.
@@ -57,7 +60,7 @@ als.npn <- huge.npn(alsData$exprs)
 adjdata <- SEMbap(alsData$graph, als.npn)$data
 
 # Clusters creation
-clusters <- extractClusters(graph = alsData$graph, data = adjdata)
+clusters <- extractClusters(alsData$graph, adjdata, alsData$group)
 print(clusters$dfc)
 head(parameterEstimates(clusters$fit$HM1))
 head(parameterEstimates(clusters$fit$HM2))

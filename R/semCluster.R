@@ -213,15 +213,14 @@ clusterGraph <- function(graph, type = "wtc", HM = "none", size = 5,
 #'
 #' @seealso
 #' See \code{\link[SEMgraph]{clusterGraph}} and \code{\link[SEMgraph]{cplot}}
-#' for graph clustering, and \code{\link[cate]{factor.analysis}} for
-#' factor analysis.
+#' for graph clustering.
 #'
 #' @author Mario Grassi \email{mario.grassi@unipv.it}
 #'
 #' @references
 #' Grassi M, Palluzzi F, Tarantino B (2022). SEMgraph: An R Package for Causal Network
 #' Analysis of High-Throughput Data with Structural Equation Models.
-#' Bioinformatics, 2022;, btac567, https://doi.org/10.1093/bioinformatics/btac567
+#' Bioinformatics, 38 (20), 4829–4830 <https://doi.org/10.1093/bioinformatics/btac567>
 #'
 #' @return A list of 3 objects:
 #' \enumerate{
@@ -263,18 +262,18 @@ clusterScore <- function(graph, data, group, HM = "LV", type = "wtc",
 		if (length(LX) == 0) return(list(fit = NA, M = NA, dataHM = NA))
 		gLM <- LX[[1]]
 		membership <- LX[[2]]
-		LX <- V(gLM)$name[substr(V(gLM)$name, 1, 1) == "L"]
+		#LX <- V(gLM)$name[substr(V(gLM)$name, 1, 1) == "L"]
 
 		# Latent Variables(LV) model
 		K <- as.numeric(names(table(membership)))
 		LV <- NULL
-		for(k in 1:length(LX)) {
+		for(k in 1:length(K)) {
 			Xk <- subset(names(membership), membership == K[k])
 			Y <- as.matrix(dataY[, which(colnames(dataY) %in% Xk)])
 			fa1 <- factor.analysis(Y = Y, r = 1, method = "ml")$Z
 			LV <- cbind(LV, fa1)
 		}
-		colnames(LV) <- gsub("LX", "LV", LX)
+		colnames(LV) <- paste0("LV", K)
 		rownames(LV) <- rownames(dataY)
 		dataLC <- cbind(group, LV)
 
@@ -291,18 +290,18 @@ clusterScore <- function(graph, data, group, HM = "LV", type = "wtc",
 		if (length(LY) == 0) return(list(fit = NA, M = NA, dataHM = NA))
 		gLM <- LY[[1]]
 		membership <- LY[[2]]
-		LY <- V(gLM)$name[substr(V(gLM)$name, 1, 1) == "C"]
+		#LY <- V(gLM)$name[substr(V(gLM)$name, 1, 1) == "C"]
 
 		# Composite Variables(CV) model
 		K <- as.numeric(names(table(membership)))
 		CV <- NULL
-		for(k in 1:length(LY)) {
+		for(k in 1:length(K)) {
 			Xk <- subset(names(membership), membership == K[k])
 			Y <- as.matrix(dataY[,which(colnames(dataY) %in% Xk)])
 			pc1 <- factor.analysis(Y = Y, r = 1, method = "pc")$Z
 			CV <- cbind(CV, pc1)
 	}
-	colnames(CV) <- gsub("CY", "CV", LY)
+	colnames(CV) <- paste0("CV", K)
 	rownames(CV) <- rownames(dataY)
 	dataLC <- cbind(group, CV)
 
@@ -381,7 +380,7 @@ clusterScore <- function(graph, data, group, HM = "LV", type = "wtc",
 #'
 #' @param Y data matrix, a n*p matrix
 #' @param r number of factors (default, r =1)
-#' @param method algorithm to be used (default, method = "pc")
+#' @param method algorithm to be used, "pc" (default) or "ml"
 #'
 #' @details The two methods extracted from "cate" are quasi-maximum likelihood (ml), and
 #' principal component analysis (pc). The ml is iteratively solved the EM algorithm
@@ -394,10 +393,15 @@ clusterScore <- function(graph, data, group, HM = "LV", type = "wtc",
 #' \item{Sigma}{estimated noise variance matrix}
 #' }
 #'
-#' @references {
-#' Bai, J. and Li, K. (2012). Statistical analysis of factor models of high dimension.
-#' \emph{The Annals of Statistics 40}, 436-465.
-#' }
+#' @references
+#'
+#' Jushan Bai and Kunpeng Li (2012). Statistical Analysis of Factor Models of High
+#' Dimension. The Annals of Statistics, 40 (1), 436-465
+#' <https://doi.org/10.1214/11-AOS966> 
+#' 
+#' Jingshu Wang and Qingyuan Zhao (2020). cate: High Dimensional Factor Analysis
+#' and Confounder Adjusted Testing and Estimation. R package version 1.1.1.
+#' <https://CRAN.R-project.org/package=cate>
 #'
 #' @examples
 #' 
@@ -586,9 +590,12 @@ fa.em <- function(Y, r, tol = 1e-6, maxiter = 1000) {
 #'
 #' @export
 #'
-#' @return (i) clusters: list clusters as igraph objects;
-#' (ii) fit: list of fitting results for each cluster as a lavaan object;
-#' (iii) dfc: data.frame of summary results
+#' @return A list of 3 objects:
+#' \enumerate{
+#' \item "clusters", list of clusters as igraph objects;
+#' \item "fit", list of fitting results for each cluster as a lavaan object;
+#' \item "dfc", data.frame of summary results.
+#' }
 #'
 #' @author Fernando Palluzzi \email{fernando.palluzzi@gmail.com}
 #'
@@ -602,7 +609,7 @@ fa.em <- function(Y, r, tol = 1e-6, maxiter = 1000) {
 #' adjdata <- SEMbap(alsData$graph, als.npn)$data
 #'
 #' # Clusters creation
-#' clusters <- extractClusters(graph = alsData$graph, data = adjdata)
+#' clusters <- extractClusters(alsData$graph, adjdata, alsData$group)
 #' print(clusters$dfc)
 #' head(parameterEstimates(clusters$fit$HM1))
 #' head(parameterEstimates(clusters$fit$HM2))
@@ -630,14 +637,17 @@ extractClusters<- function(graph, data, group = NULL, membership = NULL, map = F
 	for (i in 1:N) {
 		cat("\r","cluster=", i, "of", N)
 		flush.console()
-		fit<- quiet(SEMrun(clusters[[i]], data, group))
-		if(is.null(fit)) next
-		if (!is.null(group) & vcount(clusters[[i]]) > 100){ 
-		 dev_df <- fit$fit$ricf$dev/fit$fit$ricf$df
+		
+		if (!is.null(group)){
+		 fit<- quiet(SEMrun(clusters[[i]], data, group, algo="ricf"))
+		 if(is.null(fit)) next
+		 dev_df <- fit$fit$fitIdx[1]/fit$fit$fitIdx[2]
 		 srmr <- fit$fit$fitIdx[3]
 		 pv1<- Brown.test(x=fit$dataXY[,-1], p=fit$gest$pvalue, theta=fit$gest$Stat, tail="positive")
 		 pv2<- Brown.test(x=fit$dataXY[,-1], p=fit$gest$pvalue, theta=fit$gest$Stat, tail="negative")
 		}else{
+		 fit<- quiet(SEMrun(clusters[[i]], data, group=NULL))
+		 if(is.null(fit)) next
 		 dev_df <- fitMeasures(fit$fit, "chisq")/fitMeasures(fit$fit, "df")
 		 srmr <- fitMeasures(fit$fit, "srmr")
 		 pv1<- 1
@@ -651,7 +661,8 @@ extractClusters<- function(graph, data, group = NULL, membership = NULL, map = F
 		 dev_df = round(dev_df, 3),
 		 srmr = round(srmr, 3),
 		 V.pv.act = round(pv1, 6),
-		 V.pv.inh = round(pv2, 6))
+		 V.pv.inh = round(pv2, 6)
+		)
 		 
 		res <- rbind(res, dfc)
 		lav <- c(lav, list(fit$fit))
@@ -753,11 +764,13 @@ cplot<- function (graph, membership, l = layout.auto, map = FALSE, verbose = FAL
 #' node names. By default, \code{membership = NULL}.
 #' @param HM Hidden cluster label. If membership is derived from clusterGraph:
 #' HM = "LV", a latent variable (LV) will be defined as common unknown cause
-#' acting on cluster nodes. If HM = "CV", cluster nodes will be considered as regressors of a
-#' latent composite variable (CV). Finally, if HM = "UV", an unmeasured
-#' variable (UV) is defined, where source nodes of the module (i.e.,
+#' acting on cluster nodes. If HM = "CV", cluster nodes will be considered as
+#' regressors of a latent composite variable (CV). Finally, if HM = "UV", an
+#' unmeasured variable (UV) is defined, where source nodes of the module (i.e.,
 #' in-degree = 0) act as common regressors influencing the other nodes
 #' via an unmeasured variable. By default, \code{HM = NULL}
+#' @param verbose A logical value. If FALSE (default), the merged graphs will
+#' not be plotted to screen.
 #' @param ... Currently ignored.
 #'
 #' @details Hierarchical clustering with prototypes (or Minmax linkage) is
@@ -789,11 +802,11 @@ cplot<- function (graph, membership, l = layout.auto, map = FALSE, verbose = FAL
 #'
 #' # Gene memberships with prototypes with h=0.5
 #' G <- properties(alsData$graph)[[1]]
-#' M <- mergeNodes(G, data = alsData$exprs, h = 0.5)
+#' M <- mergeNodes(G, data = alsData$exprs, h = 0.5, verbose=TRUE)
 #'
 #' # Gene memberships with EBC method and size=10
 #' m <- clusterGraph(G, type = "ebc", size = 10)
-#' M <- mergeNodes(G, membership = m, HM = "LV")
+#' M <- mergeNodes(G, membership = m, HM = "LV", verbose=TRUE)
 #'
 #' # Gene memberships defined by user
 #' c1 <- c("5894", "5576", "5567", "572", "598")
@@ -801,9 +814,9 @@ cplot<- function (graph, membership, l = layout.auto, map = FALSE, verbose = FAL
 #' c3 <- c("5603", "6300", "1432", "5600")
 #' m <- c(rep(1,5), rep(2,5), rep(3,4))
 #' names(m) <- c(c1, c2, c3)
-#' M <- mergeNodes(G, membership = m, HM = "CV")
+#' M <- mergeNodes(G, membership = m, HM = "CV", verbose=TRUE)
 #'
-mergeNodes<- function(graph, data, h = 0.5, membership = NULL, HM = NULL, ...)
+mergeNodes<- function(graph, data, h=0.5, membership=NULL, HM=NULL, verbose=FALSE, ...)
 {
 	# Set membership object :
 	if (is.numeric(membership)){
@@ -832,10 +845,10 @@ mergeNodes<- function(graph, data, h = 0.5, membership = NULL, HM = NULL, ...)
 
 	ig<- graph_from_graphnel(gLM)
 	if( length(V(ig)$color) == 0 ) V(ig)$color<- "white"
-	V(ig)$color[substr(V(ig)$name,1,2) == HM] <- "pink"
-	V(ig)$color[substr(V(ig)$name,1,1) == "p"] <- "pink"
+	V(ig)$color[substr(V(ig)$name,1,2) == HM] <- "yellow"
+	V(ig)$color[substr(V(ig)$name,1,1) == "p"] <- "yellow"
 	V(ig)$name <- gsub("p", "", V(ig)$name)
-	gplot(ig)
+	if (verbose) gplot(ig)
 
 	return(list(gLM=ig, membership=membership))
 }

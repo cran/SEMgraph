@@ -13,7 +13,6 @@ modelSearch(
   beta = 0,
   method = "BH",
   alpha = 0.05,
-  limit = 30000,
   verbose = FALSE,
   ...
 )
@@ -87,10 +86,6 @@ hidden covariances, thus considering more sources of confounding.
 If \code{alpha = 0}, data de-correlation is disabled.
 By default, \code{alpha = 0.05}.}
 
-\item{limit}{An integer value corresponding to the number of missing
-edges of the extracted acyclic graph. Beyond this limit, multicore
-computation is enabled to reduce the computational burden.}
-
 \item{verbose}{If TRUE, it shows intermediate graphs during the
 execution (not recommended for large graphs).}
 
@@ -107,8 +102,8 @@ as a list of 2 objects:
 \description{
 Four model search strategies are implemented combining
 \code{SEMdag()}, \code{SEMbap()}, and \code{resizeGraph()} functions.
-All strategies estimate a graph adjusting (de-correlate) the data matrix 
-and re-sized the output DAG.
+All strategies estimate a new graph by 1) adjusting (BAP deconfounding) the
+the data matrix and 2) re-sizing the output DAG.
 }
 \details{
 Search strategies can be ordered by decreasing conservativeness

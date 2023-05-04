@@ -7,7 +7,7 @@ Structural Equation Modeling (SEM). **SEMgraph** comes with the following functi
 - Interchangeable model representation as either an **igraph** object 
 or the corresponding SEM in **lavaan** syntax. Model management functions 
 include graph-to-SEM conversion, automated covariance matrix regularization, 
-graph conversion to DAG, and graph creation from correlation matrices.
+graph conversion to DAG, and tree (arborescence) from correlation matrices.
 
 - Heuristic filtering, node and edge weighting, resampling and 
 parallelization settings for fast fitting in case of very large models.
