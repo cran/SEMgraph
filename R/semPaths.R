@@ -378,8 +378,8 @@ SEMpath <- function(graph, data, group, from, to, path, verbose = FALSE, ...)
 #'
 #' # Find and evaluate significantly perturbed paths
 #'
-#' library(huge)
-#' als.npn <- huge.npn(alsData$exprs)
+#' # Nonparanormal(npn) transformation
+#' als.npn <- transformData(alsData$exprs)$data
 #'
 #' adjData <- SEMbap(alsData$graph, als.npn)$data
 #'

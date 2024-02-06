@@ -54,8 +54,8 @@ Extract and fit clusters from an input graph.
 
 \donttest{
 
-library(huge)
-als.npn <- huge.npn(alsData$exprs)
+# Nonparanormal(npn) transformation
+als.npn <- transformData(alsData$exprs)$data
 
 adjdata <- SEMbap(alsData$graph, als.npn)$data
 

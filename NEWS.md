@@ -1,3 +1,17 @@
+## Version 1.2.1 Release Notes
+* Added new predictSink() function for SEM-based out-of-sample predictions
+of (observed) response y-variables (sink nodes) given the values
+of (observed) x-variables (source and mediator) nodes from the fitted
+graph structure.
+
+* Added new transformData() function implementing various data trasformation
+methods to perform optimal scaling for ordinal or nominal data, and to help
+relax the assumption of normality (gaussianity) for continuous data. 
+
+* Update kegg.RData and kegg.pathways.RData (February 2024).
+
+* Various fixed bugs
+
 ## Version 1.2.0 Release Notes
 * Version 1.2.0 is a major release with several new features, including:
 

@@ -19,7 +19,7 @@
 
 # -------------------------------------------------------------------- #
 
-#' @title SEM-based gene set analysis (GSA)
+#' @title SEM-based gene set analysis
 #'
 #' @description Gene Set Analysis (GSA) via self-contained test for group
 #' effect on signaling (directed) pathways based on SEM. The core of the
@@ -95,9 +95,7 @@
 #' \dontrun{
 #'
 #' # Nonparanormal(npn) transformation
-#'
-#' library(huge)
-#' als.npn <- huge.npn(alsData$exprs)
+#' als.npn <- transformData(alsData$exprs)$data
 #'
 #' # Selection of FTD-ALS pathways from kegg.pathways.Rdata
 #'
@@ -168,7 +166,8 @@ SEMgsa<- function(g=list(), data, group, method = "BH", alpha = 0.05, n_rep = 10
 	   pert = pert,
 	   pNa = cpval[1],
 	   pNi = cpval[2],
-	   PVAL = 2 * min(cpval[1], cpval[2]))
+	   PVAL = min(2 * min(cpval[1], cpval[2]), 1)
+	 )
 	 res.tbl <- rbind(res.tbl,df)
 	}
  
@@ -181,9 +180,9 @@ SEMgsa<- function(g=list(), data, group, method = "BH", alpha = 0.05, n_rep = 10
 	return( list(gsa=gsa, DEG=DEG) )
 }
 
-#' @title SEM-based differential causal inference (DCI)
+#' @title SEM-based differential network analysis
 #'
-#' @description Creates a network with perturbed edges obtained from the
+#' @description Creates a sub-network with perturbed edges obtained from the
 #' output of \code{\link[SEMgraph]{SEMace}}, comparable to the procedure in
 #' Jablonski et al (2022), or of \code{\link[SEMgraph]{SEMrun}} with two-group
 #' and CGGM solver, comparable to the algorithm 2 in Belyaeva et al (2021). 
@@ -200,17 +199,18 @@ SEMgsa<- function(g=list(), data, group, method = "BH", alpha = 0.05, n_rep = 10
 #' @param group A binary vector. This vector must be as long as the number
 #' of subjects. Each vector element must be 1 for cases and 0 for control
 #' subjects.
-#' @param type  Average Causal Effect (ACE) with two-group, "parents" (back-door)
-#' adjustement set, and "direct" effects (\code{type = "ace"}, default), or
-#' CGGM solver with two-group using a clustering method.
+#' @param type  Average Causal Effect (ACE) with two-group, "parents"
+#' (back-door) adjustement set, and "direct" effects (\code{type = "ace"},
+#' default), or CGGM solver with two-group using a clustering method.
 #' If \code{type = "tahc"}, network modules are generated using the tree
-#' agglomerative hierarchical clustering method. Other non-tree clustering
-#' methods from igraph package include: "wtc" (walktrap community structure
-#' with short random walks), "ebc" (edge betweeness clustering), "fgc"
-#' (fast greedy method), "lbc" (label propagation method), "lec" (leading
-#' eigenvector method), "loc" (multi-level optimization), "opc" (optimal
-#' community structure), "sgc" (spinglass statistical mechanics), "none"
-#' (no breaking network structure into clusters).
+#' agglomerative hierarchical clustering method, or non-tree clustering
+#' methods from igraph package, i.e., \code{type = "wtc"} (walktrap community
+#' structure with short random walks), \code{type ="ebc"} (edge betweeness
+#' clustering), \code{type = "fgc"} (fast greedy method), \code{type = "lbc"}
+#' (label propagation method), \code{type = "lec"} (leading eigenvector method),
+#' \code{type = "loc"} (multi-level optimization), \code{type = "opc"} (optimal
+#' community structure), \code{type = "sgc"} (spinglass statistical mechanics),
+#' \code{type = "none"} (no breaking network structure into clusters).
 #' @param method Multiple testing correction method. One of the values
 #' available in \code{\link[stats]{p.adjust}}. By default, method is set
 #' to "BH" (i.e., FDR multiple test correction).
@@ -1038,9 +1038,9 @@ colorGraph <- function (est, graph, group, method = "none", alpha = 0.05,
 #'
 #' @param x A matrix or data.frame (n x p) of continuous data.
 #' @param y A matrix or data.frame (n x q) of continuous data.
-#' @param size number of rows to be sampled (default \code{s = nrow(z)}).
+#' @param size number of rows to be sampled (default \code{size = nrow(x)}).
 #' @param r number of rows of the plot layout (default \code{r = 4}).
-#' @param c number of columns of the plot layout (default \code{r = 4}).
+#' @param c number of columns of the plot layout (default \code{c = 4}).
 #' @param ... Currently ignored.
 #'
 #' @export
@@ -1057,9 +1057,7 @@ colorGraph <- function (est, graph, group, method = "none", alpha = 0.05,
 pairwiseMatrix<- function (x, y = NULL, size = nrow(x), r = 4, c = 4, ...)
 {
  	if (r * c > ncol(x)) {
-  	 r <- r - 1
-	 c <- c - 1
-	 p <- 1:(r * c)
+ 	 p <- 1:ncol(x)
     }else{
 	 p <- sample(1:ncol(x), size = r * c)
 	}
@@ -1164,8 +1162,17 @@ siblings <- function(g, nodes)
   sort(unique(unlist(neighborhood(g, 1, nodes = nodes, mode = "out"))))
 }
 
-quiet <- function(x) {
-	sink(tempfile())
-	on.exit(sink())
-	invisible(force(x))
+quiet <- function(..., messages=FALSE, cat=FALSE) {
+#quiet <- function(x) {
+#	sink(tempfile())
+#	on.exit(sink())
+#	invisible(force(x))
+#}
+  if(!cat){
+    tmpf <- tempfile()
+    sink(tmpf)
+    on.exit({sink(); file.remove(tmpf)})
+  }
+  out <- if(messages) eval(...) else suppressMessages(eval(...))
+  out
 }

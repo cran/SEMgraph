@@ -27,9 +27,9 @@
 #' @usage kegg
 #' @docType data
 #' @format
-#' "kegg" is an igraph network object of 5934 nodes and 77158 edges 
-#' (41122 directed and 3164/2 = 1582 bidirected) corresponding to the
-#' union of 225 KEGG pathways.
+#' "kegg" is an igraph network object of 5143 nodes and 43734 edges 
+#' (40424 directed and 3310/2 = 1655 bidirected) corresponding to the
+#' union of 227 KEGG pathways.
 #' @source \url{https://www.genome.jp/kegg/}
 #' @references
 #' 
@@ -37,9 +37,9 @@
 #' Nucleic Acid Research 28(1): 27-30. 
 #' <https://doi.org/10.1093/nar/27.1.29>
 #'
-#' Calin Voichita, Sahar Ansari and Sorin Draghici (2021).
-#' ROntoTools: R Onto-Tools suite. R package version 2.20.0.
-#' 
+#' Calin Voichita, Sahar Ansari and Sorin Draghici (2023).
+#' ROntoTools: R Onto-Tools suite. R package version 2.30.0.
+#'
 #' @examples
 #' 
 #' # KEGG graph

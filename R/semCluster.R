@@ -232,8 +232,8 @@ clusterGraph <- function(graph, type = "wtc", HM = "none", size = 5,
 #'
 #' @examples
 #'
-#' library(huge)
-#' als.npn <- huge.npn(alsData$exprs)
+#' # Nonparanormal(npn) transformation
+#' als.npn <- transformData(alsData$exprs)$data
 #'
 #' C <- clusterScore(graph = alsData$graph, data = als.npn,
 #'                   group = alsData$group,
@@ -405,8 +405,8 @@ clusterScore <- function(graph, data, group, HM = "LV", type = "wtc",
 #'
 #' @examples
 #' 
-#' library(huge)
-#' als.npn <- huge.npn(alsData$exprs)
+#' # Nonparanormal(npn) transformation
+#' als.npn <- transformData(alsData$exprs)$data
 #' 
 #' ## pc
 #' pc<- factor.analysis(Y = als.npn, r = 2, method = "pc")
@@ -603,8 +603,8 @@ fa.em <- function(Y, r, tol = 1e-6, maxiter = 1000) {
 #'
 #' \donttest{
 #'
-#' library(huge)
-#' als.npn <- huge.npn(alsData$exprs)
+#' # Nonparanormal(npn) transformation
+#' als.npn <- transformData(alsData$exprs)$data
 #'
 #' adjdata <- SEMbap(alsData$graph, als.npn)$data
 #'
