@@ -375,7 +375,6 @@ SEMpath <- function(graph, data, group, from, to, path, verbose = FALSE, ...)
 #' @examples
 #'
 #' \donttest{
-#'
 #' # Find and evaluate significantly perturbed paths
 #'
 #' # Nonparanormal(npn) transformation
@@ -390,7 +389,6 @@ SEMpath <- function(graph, data, group, from, to, path, verbose = FALSE, ...)
 #' print(paths$dfp)
 #' head(parameterEstimates(paths$fit[[1]]))
 #' gplot(paths$paths[[1]])
-#'
 #' }
 #'
 pathFinder <- function(graph, data, group = NULL, ace = NULL, path = "directed",

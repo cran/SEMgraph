@@ -47,7 +47,7 @@
 #' and blacklisted samples.
 #' }
 #'
-#' @source \url{https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE124439/}
+#' @source \url{https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE124439}
 #'
 #' @references
 #'
